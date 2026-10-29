@@ -88,7 +88,7 @@ var DIRS = {up:'Up', app:'Up', down:'Down', dawn:'Down', left:'Left', lift:'Left
 var BTNS = {a:'A', ay:'A', eh:'A', ah:'A', hey:'A', okay:'A', ok:'A', confirm:'A', yes:'A', accept:'A', b:'B', be:'B', bee:'B', back:'B', cancel:'B', no:'B', start:'Start', select:'Select', l:'L', r:'R'};
 function num(w){ return w === undefined ? null : (/^\d+$/.test(w) ? Math.min(+w, 20) : NUM[w]); }
 function norm(raw){ return String(raw || '').toLowerCase().replace(/[’'`]/g, '').replace(/[^a-z0-9\- ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
-function parse(raw){
+function parseOne(raw){
   var s = norm(raw), m;
   if (!s) return null;
   if (/^(stop|halt|freeze|release|wait|cancel that)$/.test(s)) return {t:'stop', label:'stop'};
@@ -116,6 +116,24 @@ function parse(raw){
     return {t:'move', who:m[1] || null, moveName:m[2], label:'use ' + m[2]};
   return null;
 }
+
+/* several short commands in one breath: "down down down", "up up right a" */
+function parseSeq(raw){
+  var w = norm(raw).replace(/\b(then|and|next)\b/g, ' ').replace(/\s+/g, ' ').trim().split(' '), steps = [], i = 0, len, a;
+  if (w.length < 2 || w.length > 40) return null;
+  while (i < w.length){
+    a = null;
+    for (len = Math.min(4, w.length - i); len >= 1 && !a; len--){
+      var r = parseOne(w.slice(i, i + len).join(' '));
+      if (r && (r.t === 'tap' || r.t === 'walk')){ a = r; i += len; break; } else a = null;
+    }
+    if (!a) return null;
+    steps.push(a);
+  }
+  if (steps.length < 2 || steps.length > 14) return null;
+  return {t:'seq', steps:steps, label:steps.map(function(s){ return s.label; }).join(', ')};
+}
+function parse(raw){ return parseOne(raw) || parseSeq(raw); }
 
 /* ---------- pressing buttons ---------- */
 var ABORT = {abort:true}, gen = 0, held = {}, holdKey = null, q = Promise.resolve(), last = null;
@@ -202,6 +220,7 @@ function doMove(a, g){
 }
 
 function exec(a, g){
+  if (a.t === 'seq'){ var p = Promise.resolve(); a.steps.forEach(function(s){ p = p.then(function(){ return exec(s, g); }); }); return p; }
   switch (a.t){
     case 'tap': { var p = Promise.resolve(), n = a.n || 1; for (var i = 0; i < n; i++) p = p.then(function(){ return tap(a.k, g); }); return p; }
     case 'walk': key(a.d, true); return sleep(Math.max(120, a.n * TILE_MS - TRIM_MS), g).then(function(){ key(a.d, false); return sleep(120, g); }, function(e){ key(a.d, false); throw e; });
