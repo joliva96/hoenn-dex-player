@@ -1,0 +1,83 @@
+<div id="emu" role="application" aria-label="Game Boy Advance emulator">
+  <header class="top emu-top">
+    <div class="top-in in">
+      <div class="hd-row">
+        <div class="lens" id="emu-lens" role="img" aria-label="0 of 386 caught"><div class="lens-in"><b id="emu-lensN">0</b><span>of 386</span></div></div>
+        <div class="hd-txt"><h1>Hoenn Dex Player</h1><p id="emu-sub">Play Emerald and your Pokédex fills itself.</p></div>
+      </div>
+    </div>
+    <div class="ribs" aria-hidden="true"></div>
+  </header>
+  <div class="emu-body" id="emu-body">
+  <div class="emu-screen">
+    <canvas id="emu-canvas" width="240" height="160" aria-label="Game screen"></canvas>
+    <div class="emu-splash" id="emu-splash">
+      <h1 id="sp-h">Starting…</h1>
+      <p id="sp-p"></p>
+      <button class="emu-cta" id="sp-go" type="button" hidden>Play</button>
+      <button class="emu-link" id="sp-alt" type="button" hidden>Choose a different ROM</button>
+    </div>
+  </div>
+
+  <div class="emu-fill" id="emu-fill">
+    <section class="emu-card" id="emu-card" data-size="off" aria-label="Pokédex progress">
+      <div class="ec-head"><b>Pokédex</b><span id="ec-n">0 of 386 caught</span><button class="ec-open" id="ec-open" type="button">Open ›</button></div>
+      <div class="ec-gens">
+        <div id="ec-g1"><label>Kanto</label><div class="bar"><i></i></div><em>0/151</em></div>
+        <div id="ec-g2"><label>Johto</label><div class="bar"><i></i></div><em>0/100</em></div>
+        <div id="ec-g3"><label>Hoenn</label><div class="bar"><i></i></div><em>0/135</em></div>
+      </div>
+      <div class="ec-recent" id="ec-recent" hidden><h3>Newest</h3><div class="ec-sp" id="ec-sp"></div></div>
+    </section>
+  </div>
+
+  <div class="emu-ctl" id="emu-ctl">
+    <div class="emu-sh">
+      <div class="emu-key" data-btn="L" role="button" aria-label="L button">L</div>
+      <button class="emu-mic" id="emu-mic" type="button" aria-pressed="false" aria-label="Voice control off. Tap to turn on"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <div class="emu-key" data-btn="R" role="button" aria-label="R button">R</div>
+    </div>
+    <div class="emu-mid">
+      <div class="emu-dpad" id="emu-dpad" role="group" aria-label="Directional pad">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <path class="shape" d="M46 2h28a6 6 0 0 1 6 6v32h32a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H80v32a6 6 0 0 1-6 6H46a6 6 0 0 1-6-6V80H8a6 6 0 0 1-6-6V46a6 6 0 0 1 6-6h32V8a6 6 0 0 1 6-6z"/>
+          <path class="arm" data-d="Up" d="M46 2h28a6 6 0 0 1 6 6v32H40V8a6 6 0 0 1 6-6z"/><polygon class="tri" points="60,12 70,28 50,28"/>
+          <path class="arm" data-d="Down" d="M40 80h40v32a6 6 0 0 1-6 6H46a6 6 0 0 1-6-6z"/><polygon class="tri" points="60,108 70,92 50,92"/>
+          <path class="arm" data-d="Left" d="M8 40h32v40H8a6 6 0 0 1-6-6V46a6 6 0 0 1 6-6z"/><polygon class="tri" points="12,60 28,50 28,70"/>
+          <path class="arm" data-d="Right" d="M80 40h32a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6H80z"/><polygon class="tri" points="108,60 92,50 92,70"/>
+        </svg>
+      </div>
+      <div class="emu-ab">
+        <div class="emu-key" data-btn="B" role="button" aria-label="B button">B</div>
+        <div class="emu-key" data-btn="A" role="button" aria-label="A button">A</div>
+      </div>
+    </div>
+    <div class="emu-bot">
+      <div class="emu-key" data-btn="Select" role="button" aria-label="Select button">Select</div>
+      <button class="emu-menu" id="emu-menu" type="button" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</button>
+      <div class="emu-key" data-btn="Start" role="button" aria-label="Start button">Start</div>
+    </div>
+  </div>
+
+  </div>
+
+  <div class="emu-toast" id="emu-toast" hidden aria-live="polite"><span id="emu-toast-t"></span></div>
+
+  <div class="emu-scrim" id="emu-scrim" hidden></div>
+  <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
+    <h2>Menu</h2>
+    <p class="stat" id="mn-stat"></p>
+    <div id="mn-ask" hidden></div>
+    <div id="mn-list" style="display:grid;gap:8px">
+      <button class="emu-item main" id="mn-dex" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><circle cx="12" cy="12" r="2.6"/></svg>Pokédex</button>
+      <button class="emu-item" id="mn-imp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Import save</button>
+      <button class="emu-item" id="mn-exp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Export save</button>
+      <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
+      <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>
+      <button class="emu-item quiet" id="mn-close" type="button">Close</button>
+    </div>
+  </div>
+
+  <input type="file" id="emu-rom" accept=".gba,.bin,.rom,application/octet-stream" hidden>
+  <input type="file" id="emu-sav" accept=".sav,.srm,application/octet-stream" hidden>
+</div>
