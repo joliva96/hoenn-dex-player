@@ -203,6 +203,7 @@ function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
+  applyVol();
   st.running = true; hideSplash(); wake();
 }
 function pause(){
@@ -295,8 +296,23 @@ ctl.addEventListener('pointerup', up); ctl.addEventListener('pointercancel', up)
 document.addEventListener('contextmenu', function(e){ if ($('emu').contains(e.target)) e.preventDefault(); });
 window.addEventListener('blur', releaseAll);
 
+/* ---------- sound level (our own gain stage between the engine and the speaker) ---------- */
+var VOLS = [1, 0.7, 0.4], VOLN = ['Full', 'Softer', 'Quiet'];
+function volIdx(){ try{ var v = +localStorage.getItem('hdp-vol'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
+function applyVol(){
+  try{
+    var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, ctx = s2 && s2.audioContext;
+    if (!n || !ctx) return;
+    if (st.vnode !== n){ var g = ctx.createGain(); n.disconnect(); n.connect(g); g.connect(ctx.destination); st.vnode = n; st.vgain = g; }
+    st.vgain.gain.value = VOLS[volIdx()];
+  }catch(e){}
+}
+function volLabel(){ $('mn-vol-t').textContent = 'Sound: ' + VOLN[volIdx()]; }
+$('mn-vol').addEventListener('click', function(){ try{ localStorage.setItem('hdp-vol', String((volIdx() + 1) % 3)); }catch(e){} applyVol(); volLabel(); });
+
 /* ---------- menu ---------- */
 function openMenu(){
+  volLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
