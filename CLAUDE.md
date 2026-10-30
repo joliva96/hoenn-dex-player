@@ -9,3 +9,5 @@ This repo is the live site (GitHub Pages, branch main, root folder). The owner i
 - Never add ROMs or saves to the repo. The ROM is chosen on the phone and stored in the browser's IndexedDB.
 - Owner's rules: portrait only, touch only, no save states, no haptics, main buttons only. Voice control is opt-in via the mic button.
 - Tested with Playwright and hand-made test ROMs only; never with a real Emerald ROM or a real iPhone, so be honest about what is unverified.
+- `mgba.js` in the repo root is the stock mGBA-wasm glue with ONE patch: the audio buffer can be a multiple of the engine's size (`window.__abufMul`, set from the Menu's "Audio smoothing" row). If the engine file is ever replaced, re-apply it: in the `createScriptProcessor($1, 0, $0)` snippet, size the node `$1 * mul` and call the engine callback `mul` times with sub-array views of the output buffer.
+- The engine's own setVolume does not change loudness (only mutes), so there is no volume setting.

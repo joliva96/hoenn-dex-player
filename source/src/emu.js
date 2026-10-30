@@ -134,6 +134,7 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 /* ---------- the emulator engine (mGBA compiled to WebAssembly, single-threaded build) ---------- */
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
+  window.__abufMul = ABUF[abufIdx()];
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){ try{ M.toggleInput(false); }catch(e){} st.M = M; return M; });
   });
@@ -203,7 +204,7 @@ function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
-  applyVol();
+  measureHz();
   st.running = true; hideSplash(); wake();
 }
 function pause(){
@@ -296,27 +297,32 @@ ctl.addEventListener('pointerup', up); ctl.addEventListener('pointercancel', up)
 document.addEventListener('contextmenu', function(e){ if ($('emu').contains(e.target)) e.preventDefault(); });
 window.addEventListener('blur', releaseAll);
 
-/* ---------- sound level (our own gain stage between the engine and the speaker) ---------- */
-var VOLS = [1, 0.7, 0.4], VOLN = ['Full', 'Softer', 'Quiet'];
-function volIdx(){ try{ var v = +localStorage.getItem('hdp-vol'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
-function applyVol(){
-  try{
-    var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, ctx = s2 && s2.audioContext;
-    if (!n || !ctx) return;
-    if (st.vnode !== n){ var g = ctx.createGain(); n.disconnect(); n.connect(g); g.connect(ctx.destination); st.vnode = n; st.vgain = g; }
-    st.vgain.gain.value = VOLS[volIdx()];
-  }catch(e){}
+/* ---------- audio smoothing: how much sound the engine prepares ahead (bigger = fewer gaps, a little more delay) ---------- */
+var ABUF = [1, 2, 4], ABN = ['Small', 'Medium', 'Large'];
+function abufIdx(){ try{ var v = localStorage.getItem('hdp-abuf'); if (v === null) return 1; v = +v; return v >= 0 && v < 3 ? v : 1; }catch(e){ return 1; } }
+function abufLabel(){ $('mn-vol-t').textContent = 'Audio smoothing: ' + ABN[abufIdx()]; }
+$('mn-vol').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-abuf', String((abufIdx() + 1) % 3)); }catch(e){}
+  abufLabel(); toast('Audio smoothing: ' + ABN[abufIdx()] + '. It applies the next time you fully close and reopen the app.', 5000);
+});
+function measureHz(){
+  if (st.hz) return; var n = 0, t0 = 0;
+  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else st.hz = Math.round(n * 1000 / (t - t0)); }
+  requestAnimationFrame(f);
 }
-function volLabel(){ $('mn-vol-t').textContent = 'Sound: ' + VOLN[volIdx()]; }
-$('mn-vol').addEventListener('click', function(){ try{ localStorage.setItem('hdp-vol', String((volIdx() + 1) % 3)); }catch(e){} applyVol(); volLabel(); });
+function audioInfo(){
+  try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
+    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' : ''; }catch(e){ return ''; }
+}
 
 /* ---------- menu ---------- */
 function openMenu(){
-  volLabel();
+  abufLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
     + (st.backup ? '\n' + (st.backup.ok ? 'Save backed up to your account at ' + new Date(st.backup.t).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + '.' : 'The account backup did not work. Export your save to be safe.') : '');
+  var ai = audioInfo(); if (ai) $('mn-stat').textContent += '\n' + ai;
   $('mn-ask').hidden = true; $('mn-list').hidden = false;
   $('emu-scrim').hidden = false; $('emu-sheet').hidden = false;
 }
