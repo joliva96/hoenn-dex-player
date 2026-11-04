@@ -92,6 +92,7 @@ function parseOne(raw){
   var s = norm(raw), m;
   if (!s) return null;
   if (/^(stop|halt|freeze|release|wait|cancel that)$/.test(s)) return {t:'stop', label:'stop'};
+  if ((m = s.match(/^zoom (in|out)$/))) return {t:'zoom', dir:m[1] === 'in' ? 1 : -1, label:'zoom ' + m[1]};
   if (/^(again|repeat|repeat that|do that again)$/.test(s)) return {t:'again', label:'again'};
   if ((m = s.match(new RegExp('^(?:hold|keep going|keep walking|keep moving|keep) ' + DIR + '$')))) return {t:'hold', d:DIRS[m[1]], label:'hold ' + DIRS[m[1]].toLowerCase()};
   if ((m = s.match(new RegExp('^(?:(?:walk|go|move|step|head|run) )?' + DIR + CNT + '$')))){
@@ -225,6 +226,7 @@ function exec(a, g){
     case 'tap': { var p = Promise.resolve(), n = a.n || 1; for (var i = 0; i < n; i++) p = p.then(function(){ return tap(a.k, g); }); return p; }
     case 'walk': key(a.d, true); return sleep(Math.max(120, a.n * TILE_MS - TRIM_MS), g).then(function(){ key(a.d, false); return sleep(120, g); }, function(e){ key(a.d, false); throw e; });
     case 'hold': key(a.d, true); holdKey = a.d; return Promise.resolve();
+    case 'zoom': A.zoomStep(a.dir); return Promise.resolve();
     case 'menu': return doMenu(a, g);
     case 'moves': return doMoves(g);
     case 'move': return doMove(a, g);

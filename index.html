@@ -384,6 +384,8 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .emu-mic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .emu-mic[aria-pressed="true"]{background:var(--emu-on);border-color:var(--emu-on);color:var(--emu-on-ink);box-shadow:0 0 0 4px var(--accent-soft)}
 .emu-mic.bad{opacity:.45}
+
+.emu-screen{touch-action:none}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -452,13 +454,14 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 4</h2>
+    <h2>Menu · build 5</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
       <button class="emu-item main" id="mn-dex" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><circle cx="12" cy="12" r="2.6"/></svg>Pokédex</button>
       <button class="emu-item" id="mn-imp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Import save</button>
       <button class="emu-item" id="mn-exp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Export save</button>
+      <button class="emu-item" id="mn-zoom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg><span id="mn-zoom-t">Zoom: 100%</span></button>
       <button class="emu-item" id="mn-vol" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol-t">Audio smoothing: Medium</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
       <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>
@@ -1758,7 +1761,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel();
+  abufLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
@@ -1899,15 +1902,73 @@ document.querySelector('.tabs').addEventListener('click', function(e){
   e.stopPropagation(); openGame();
 }, true);
 
-/* ---------- crisp scaling: size the screen to whole game pixels when that costs almost no width ---------- */
+/* ---------- crisp scaling + zoom ----------
+   The screen is sized to whole game pixels. Zoom below 100% shrinks the frame; zoom above 100% magnifies inside the frame
+   (cropping the edges, centred on where Emerald keeps the player), always by a whole number of device pixels so it stays sharp. */
+var ZSTEPS = [0.75, 1, 1.5, 2], FOCUS_X = 120, FOCUS_Y = 72;
+function zoomVal(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
+st.zoom = zoomVal();
+function zoomLabel(){ var t = $('mn-zoom-t'); if (t) t.textContent = 'Zoom: ' + Math.round(st.zoom * 100) + '%'; }
+function setZoom(z, keep){
+  st.zoom = Math.max(0.5, Math.min(2.6, z));
+  if (keep !== false){ try{ localStorage.setItem('hdp-zoom', String(st.zoom)); }catch(e){} }
+  fitScreen(); fitCard(); zoomLabel();
+}
+function zoomStep(dir){
+  var z = st.zoom, i;
+  if (dir > 0){ for (i = 0; i < ZSTEPS.length; i++) if (ZSTEPS[i] > z + 0.02) return setZoom(ZSTEPS[i]); return setZoom(ZSTEPS[ZSTEPS.length - 1]); }
+  for (i = ZSTEPS.length - 1; i >= 0; i--) if (ZSTEPS[i] < z - 0.02) return setZoom(ZSTEPS[i]);
+  setZoom(ZSTEPS[0]);
+}
 function fitScreen(){
-  var box = $('emu-body'), el = document.querySelector('.emu-screen'); if ($('emu').hidden) return;
+  var box = $('emu-body'), el = document.querySelector('.emu-screen'), cv = $('emu-canvas'); if ($('emu').hidden) return;
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
-  if (n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04){ el.style.width = (n * 240 / dpr) + 'px'; el.style.maxWidth = 'none'; }
+  var snapped = n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04, base = snapped ? n * 240 : phys;
+  var z = st.zoom || 1, frameW = base, mag = 0;
+  if (Math.abs(z - 1) >= 0.06){
+    var Si = Math.max(1, Math.round(base / 240 * z));
+    if (Si * 240 <= base) frameW = Si * 240; else mag = Si;
+  }
+  if (frameW !== phys){ el.style.width = (frameW / dpr) + 'px'; el.style.maxWidth = 'none'; }
   else { el.style.width = ''; el.style.maxWidth = ''; }
+  if (mag){
+    var fh = frameW * 160 / 240, w = mag * 240, h = mag * 160;
+    var left = Math.max(frameW - w, Math.min(0, Math.round(frameW / 2 - FOCUS_X * mag))), top = Math.max(fh - h, Math.min(0, Math.round(fh / 2 - FOCUS_Y * mag)));
+    cv.style.position = 'absolute'; cv.style.width = (w / dpr) + 'px'; cv.style.height = (h / dpr) + 'px'; cv.style.left = (left / dpr) + 'px'; cv.style.top = (top / dpr) + 'px';
+  } else { cv.style.position = ''; cv.style.width = ''; cv.style.height = ''; cv.style.left = ''; cv.style.top = ''; }
 }
+/* pinch the game screen to zoom, double-tap it to go back to 100% */
+(function(){
+  var scr = document.querySelector('.emu-screen'), pts = {}, pinch = null, lastTap = 0, down = null;
+  function ids(){ return Object.keys(pts); }
+  function dist(){ var k = ids(), a = pts[k[0]], b = pts[k[1]]; return Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1])); }
+  scr.addEventListener('pointerdown', function(e){
+    pts[e.pointerId] = [e.clientX, e.clientY];
+    if (ids().length === 2){ pinch = {d0: dist(), z0: st.zoom}; down = null; lastTap = 0; }
+    else if (ids().length === 1 && !(e.target.closest && e.target.closest('button'))) down = {t: Date.now(), x: e.clientX, y: e.clientY};
+  });
+  scr.addEventListener('pointermove', function(e){
+    if (!pts[e.pointerId]) return; pts[e.pointerId] = [e.clientX, e.clientY];
+    if (pinch && ids().length === 2) setZoom(pinch.z0 * dist() / pinch.d0, false);
+  });
+  function end(e){
+    if (!pts[e.pointerId]) return;
+    var wasPinch = !!pinch; delete pts[e.pointerId];
+    if (wasPinch && ids().length < 2){ pinch = null; setZoom(st.zoom, true); down = null; return; }
+    if (down && e.type === 'pointerup' && Date.now() - down.t < 280 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12){
+      var now = Date.now(); if (now - lastTap < 380){ lastTap = 0; setZoom(1); } else lastTap = now;
+    }
+    down = null;
+  }
+  scr.addEventListener('pointerup', end); scr.addEventListener('pointercancel', end);
+})();
+$('mn-zoom').addEventListener('click', function(){
+  var z = st.zoom, next = ZSTEPS[0], i;
+  for (i = 0; i < ZSTEPS.length; i++) if (ZSTEPS[i] > z + 0.02){ next = ZSTEPS[i]; break; }
+  setZoom(next);
+});
 window.addEventListener('resize', function(){ fitScreen(); fitCard(); }); window.addEventListener('orientationchange', fitScreen);
 
 /* ---------- start ---------- */
@@ -1925,7 +1986,7 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
-window.hdpApi = {st: st, setKey: setKey, toast: toast};
+window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep};
 })();
 </script>
 <script>
@@ -2023,6 +2084,7 @@ function parseOne(raw){
   var s = norm(raw), m;
   if (!s) return null;
   if (/^(stop|halt|freeze|release|wait|cancel that)$/.test(s)) return {t:'stop', label:'stop'};
+  if ((m = s.match(/^zoom (in|out)$/))) return {t:'zoom', dir:m[1] === 'in' ? 1 : -1, label:'zoom ' + m[1]};
   if (/^(again|repeat|repeat that|do that again)$/.test(s)) return {t:'again', label:'again'};
   if ((m = s.match(new RegExp('^(?:hold|keep going|keep walking|keep moving|keep) ' + DIR + '$')))) return {t:'hold', d:DIRS[m[1]], label:'hold ' + DIRS[m[1]].toLowerCase()};
   if ((m = s.match(new RegExp('^(?:(?:walk|go|move|step|head|run) )?' + DIR + CNT + '$')))){
@@ -2156,6 +2218,7 @@ function exec(a, g){
     case 'tap': { var p = Promise.resolve(), n = a.n || 1; for (var i = 0; i < n; i++) p = p.then(function(){ return tap(a.k, g); }); return p; }
     case 'walk': key(a.d, true); return sleep(Math.max(120, a.n * TILE_MS - TRIM_MS), g).then(function(){ key(a.d, false); return sleep(120, g); }, function(e){ key(a.d, false); throw e; });
     case 'hold': key(a.d, true); holdKey = a.d; return Promise.resolve();
+    case 'zoom': A.zoomStep(a.dir); return Promise.resolve();
     case 'menu': return doMenu(a, g);
     case 'moves': return doMoves(g);
     case 'move': return doMove(a, g);

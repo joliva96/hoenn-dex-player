@@ -317,7 +317,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel();
+  abufLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
@@ -458,15 +458,73 @@ document.querySelector('.tabs').addEventListener('click', function(e){
   e.stopPropagation(); openGame();
 }, true);
 
-/* ---------- crisp scaling: size the screen to whole game pixels when that costs almost no width ---------- */
+/* ---------- crisp scaling + zoom ----------
+   The screen is sized to whole game pixels. Zoom below 100% shrinks the frame; zoom above 100% magnifies inside the frame
+   (cropping the edges, centred on where Emerald keeps the player), always by a whole number of device pixels so it stays sharp. */
+var ZSTEPS = [0.75, 1, 1.5, 2], FOCUS_X = 120, FOCUS_Y = 72;
+function zoomVal(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
+st.zoom = zoomVal();
+function zoomLabel(){ var t = $('mn-zoom-t'); if (t) t.textContent = 'Zoom: ' + Math.round(st.zoom * 100) + '%'; }
+function setZoom(z, keep){
+  st.zoom = Math.max(0.5, Math.min(2.6, z));
+  if (keep !== false){ try{ localStorage.setItem('hdp-zoom', String(st.zoom)); }catch(e){} }
+  fitScreen(); fitCard(); zoomLabel();
+}
+function zoomStep(dir){
+  var z = st.zoom, i;
+  if (dir > 0){ for (i = 0; i < ZSTEPS.length; i++) if (ZSTEPS[i] > z + 0.02) return setZoom(ZSTEPS[i]); return setZoom(ZSTEPS[ZSTEPS.length - 1]); }
+  for (i = ZSTEPS.length - 1; i >= 0; i--) if (ZSTEPS[i] < z - 0.02) return setZoom(ZSTEPS[i]);
+  setZoom(ZSTEPS[0]);
+}
 function fitScreen(){
-  var box = $('emu-body'), el = document.querySelector('.emu-screen'); if ($('emu').hidden) return;
+  var box = $('emu-body'), el = document.querySelector('.emu-screen'), cv = $('emu-canvas'); if ($('emu').hidden) return;
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
-  if (n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04){ el.style.width = (n * 240 / dpr) + 'px'; el.style.maxWidth = 'none'; }
+  var snapped = n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04, base = snapped ? n * 240 : phys;
+  var z = st.zoom || 1, frameW = base, mag = 0;
+  if (Math.abs(z - 1) >= 0.06){
+    var Si = Math.max(1, Math.round(base / 240 * z));
+    if (Si * 240 <= base) frameW = Si * 240; else mag = Si;
+  }
+  if (frameW !== phys){ el.style.width = (frameW / dpr) + 'px'; el.style.maxWidth = 'none'; }
   else { el.style.width = ''; el.style.maxWidth = ''; }
+  if (mag){
+    var fh = frameW * 160 / 240, w = mag * 240, h = mag * 160;
+    var left = Math.max(frameW - w, Math.min(0, Math.round(frameW / 2 - FOCUS_X * mag))), top = Math.max(fh - h, Math.min(0, Math.round(fh / 2 - FOCUS_Y * mag)));
+    cv.style.position = 'absolute'; cv.style.width = (w / dpr) + 'px'; cv.style.height = (h / dpr) + 'px'; cv.style.left = (left / dpr) + 'px'; cv.style.top = (top / dpr) + 'px';
+  } else { cv.style.position = ''; cv.style.width = ''; cv.style.height = ''; cv.style.left = ''; cv.style.top = ''; }
 }
+/* pinch the game screen to zoom, double-tap it to go back to 100% */
+(function(){
+  var scr = document.querySelector('.emu-screen'), pts = {}, pinch = null, lastTap = 0, down = null;
+  function ids(){ return Object.keys(pts); }
+  function dist(){ var k = ids(), a = pts[k[0]], b = pts[k[1]]; return Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1])); }
+  scr.addEventListener('pointerdown', function(e){
+    pts[e.pointerId] = [e.clientX, e.clientY];
+    if (ids().length === 2){ pinch = {d0: dist(), z0: st.zoom}; down = null; lastTap = 0; }
+    else if (ids().length === 1 && !(e.target.closest && e.target.closest('button'))) down = {t: Date.now(), x: e.clientX, y: e.clientY};
+  });
+  scr.addEventListener('pointermove', function(e){
+    if (!pts[e.pointerId]) return; pts[e.pointerId] = [e.clientX, e.clientY];
+    if (pinch && ids().length === 2) setZoom(pinch.z0 * dist() / pinch.d0, false);
+  });
+  function end(e){
+    if (!pts[e.pointerId]) return;
+    var wasPinch = !!pinch; delete pts[e.pointerId];
+    if (wasPinch && ids().length < 2){ pinch = null; setZoom(st.zoom, true); down = null; return; }
+    if (down && e.type === 'pointerup' && Date.now() - down.t < 280 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12){
+      var now = Date.now(); if (now - lastTap < 380){ lastTap = 0; setZoom(1); } else lastTap = now;
+    }
+    down = null;
+  }
+  scr.addEventListener('pointerup', end); scr.addEventListener('pointercancel', end);
+})();
+$('mn-zoom').addEventListener('click', function(){
+  var z = st.zoom, next = ZSTEPS[0], i;
+  for (i = 0; i < ZSTEPS.length; i++) if (ZSTEPS[i] > z + 0.02){ next = ZSTEPS[i]; break; }
+  setZoom(next);
+});
 window.addEventListener('resize', function(){ fitScreen(); fitCard(); }); window.addEventListener('orientationchange', fitScreen);
 
 /* ---------- start ---------- */
@@ -484,5 +542,5 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
-window.hdpApi = {st: st, setKey: setKey, toast: toast};
+window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep};
 })();
