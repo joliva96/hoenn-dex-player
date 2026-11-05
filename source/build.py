@@ -43,7 +43,7 @@ emu_css=open(S+'/src/emu.css',encoding='utf8').read()
 emu_html=open(S+'/src/emu.html',encoding='utf8').read()
 emu_js=open(S+'/src/emu.js',encoding='utf8').read()
 voice_js=open(S+'/src/voice.js',encoding='utf8').read()
-map_js=open(S+'/src/map.js',encoding='utf8').read()
+map_js=open(S+'/src/hmap.js',encoding='utf8').read()
 out='''<title>Hoenn Dex Player</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 '''+tracker_css+'\n<style>\n'+emu_css+'</style>\n'+emu_html+'\n<div id="dexroot">\n'+markup+'</div>\n'+data_js+'\n'+spr_js+'\n'+main_js+'\n<script>\n'+emu_js+'</script>\n'+'<script>\n'+voice_js+'</script>\n'+'<script>\n'+map_js+'</script>\n'

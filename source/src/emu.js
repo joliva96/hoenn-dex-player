@@ -135,7 +135,6 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
-  if (!window.__gcPatched){ window.__gcPatched = 1; var og = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(t, a){ if (this.id === 'emu-canvas' && /webgl/.test(t)) a = Object.assign({}, a || {}, {preserveDrawingBuffer: true}); return og.call(this, t, a); }; }
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){ try{ M.toggleInput(false); }catch(e){} st.M = M; return M; });
   });
