@@ -30,7 +30,7 @@ function renderCard(){
 function fitCard(){
   var fill = $('emu-fill'), card = $('emu-card'); if ($('emu').hidden) return;
   var cs = getComputedStyle(fill), h = fill.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  var order = $('ec-recent').hidden ? ['compact'] : ['full', 'compact'], pick = 'off';
+  var order = card.dataset.view === 'map' ? ['map'] : $('ec-recent').hidden ? ['compact'] : ['full', 'compact'], pick = 'off';
   for (var i = 0; i < order.length; i++){ card.dataset.size = order[i]; if (card.offsetHeight <= h){ pick = order[i]; break; } }
   card.dataset.size = pick;
 }
@@ -135,6 +135,7 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
+  if (!window.__gcPatched){ window.__gcPatched = 1; var og = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(t, a){ if (this.id === 'emu-canvas' && /webgl/.test(t)) a = Object.assign({}, a || {}, {preserveDrawingBuffer: true}); return og.call(this, t, a); }; }
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){ try{ M.toggleInput(false); }catch(e){} st.M = M; return M; });
   });
@@ -542,5 +543,5 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
-window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep};
+window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu};
 })();

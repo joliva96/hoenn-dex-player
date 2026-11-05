@@ -20,15 +20,23 @@
   </div>
 
   <div class="emu-fill" id="emu-fill">
-    <section class="emu-card" id="emu-card" data-size="off" aria-label="Pokédex progress">
-      <div class="ec-head"><b>Pokédex</b><span id="ec-n">0 of 386 caught</span><button class="ec-open" id="ec-open" type="button">Open ›</button></div>
-      <div class="ec-gens">
-        <div id="ec-g1"><label>Kanto</label><div class="bar"><i></i></div><em>0/151</em></div>
-        <div id="ec-g2"><label>Johto</label><div class="bar"><i></i></div><em>0/100</em></div>
-        <div id="ec-g3"><label>Hoenn</label><div class="bar"><i></i></div><em>0/135</em></div>
+    <section class="emu-card" id="emu-card" data-size="off" data-view="dex" aria-label="Pokédex and map">
+      <div class="ec-head"><div class="ec-tabs" role="group" aria-label="Show"><button class="ec-tab" id="ec-tab-dex" type="button" aria-pressed="true">Pokédex</button><button class="ec-tab" id="ec-tab-map" type="button" aria-pressed="false">Map</button></div><span id="ec-n">0 of 386 caught</span><button class="ec-open" id="ec-open" type="button">Open ›</button><button class="ec-open ec-expand" id="ec-expand" type="button">Expand ›</button></div>
+      <div class="ec-dex">
+        <div class="ec-gens">
+          <div id="ec-g1"><label>Kanto</label><div class="bar"><i></i></div><em>0/151</em></div>
+          <div id="ec-g2"><label>Johto</label><div class="bar"><i></i></div><em>0/100</em></div>
+          <div id="ec-g3"><label>Hoenn</label><div class="bar"><i></i></div><em>0/135</em></div>
+        </div>
+        <div class="ec-recent" id="ec-recent" hidden><h3>Newest</h3><div class="ec-sp" id="ec-sp"></div></div>
       </div>
-      <div class="ec-recent" id="ec-recent" hidden><h3>Newest</h3><div class="ec-sp" id="ec-sp"></div></div>
+      <div class="ec-map"><canvas id="map-mini" aria-label="Map of the area you have walked"></canvas><p class="map-empty" id="map-empty">Walk around and the map fills in. It only shows places you have already seen.</p></div>
     </section>
+    <div class="map-view" id="map-view" hidden>
+      <canvas id="map-big" aria-label="Full map"></canvas>
+      <div class="map-bar"><button type="button" id="map-close">Close</button><button type="button" id="map-me">You</button><button type="button" id="map-fit">Fit all</button><button type="button" id="map-clear">Clear</button></div>
+      <p class="map-info" id="map-info"></p>
+    </div>
   </div>
 
   <div class="emu-ctl" id="emu-ctl">
@@ -73,6 +81,8 @@
       <button class="emu-item" id="mn-imp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Import save</button>
       <button class="emu-item" id="mn-exp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Export save</button>
       <button class="emu-item" id="mn-zoom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg><span id="mn-zoom-t">Zoom: 100%</span></button>
+      <button class="emu-item" id="mn-map" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>Open map</button>
+      <button class="emu-item" id="mn-maprec" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="mn-map-t">Map recording: On</span></button>
       <button class="emu-item" id="mn-vol" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol-t">Audio smoothing: Medium</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
       <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>

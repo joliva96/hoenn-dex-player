@@ -113,3 +113,25 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .emu-mic.bad{opacity:.45}
 
 .emu-screen{touch-action:none}
+
+.ec-tabs{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface2)}
+.ec-tab{min-height:26px;padding:0 10px;border:0;border-radius:7px;background:none;color:var(--emu-dim);font-weight:700;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}
+.ec-tab[aria-pressed="true"]{background:var(--accent-soft);color:var(--emu-ink)}
+.ec-dex{display:grid;gap:8px}
+.ec-map{display:none;position:relative;min-height:0}
+.ec-map canvas{position:absolute;inset:0;display:block;width:100%;height:100%;border-radius:8px;background:#000;image-rendering:pixelated}
+.map-empty{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:12px;text-align:center;font-size:.8rem;color:#cfd6dd}
+.map-empty[hidden]{display:none}
+.emu-card[data-view="map"]{height:100%;grid-template-rows:auto minmax(0,1fr)}
+.emu-card[data-view="map"] #ec-n{display:none}
+.emu-card[data-view="map"] .ec-head{justify-content:space-between}
+.emu-card[data-view="map"] .ec-dex,.emu-card[data-view="map"] .ec-open:not(.ec-expand){display:none}
+.emu-card[data-view="map"] .ec-map{display:block}
+.emu-card:not([data-view="map"]) .ec-expand{display:none}
+.emu-card[data-view="map"][data-size="off"]{display:grid}
+.map-view{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
+.map-view[hidden]{display:none}
+.map-view canvas{flex:1;min-height:0;width:100%;touch-action:none;image-rendering:pixelated}
+.map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
+.map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
+.map-info{position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}

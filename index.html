@@ -386,6 +386,28 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .emu-mic.bad{opacity:.45}
 
 .emu-screen{touch-action:none}
+
+.ec-tabs{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface2)}
+.ec-tab{min-height:26px;padding:0 10px;border:0;border-radius:7px;background:none;color:var(--emu-dim);font-weight:700;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase}
+.ec-tab[aria-pressed="true"]{background:var(--accent-soft);color:var(--emu-ink)}
+.ec-dex{display:grid;gap:8px}
+.ec-map{display:none;position:relative;min-height:0}
+.ec-map canvas{position:absolute;inset:0;display:block;width:100%;height:100%;border-radius:8px;background:#000;image-rendering:pixelated}
+.map-empty{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:12px;text-align:center;font-size:.8rem;color:#cfd6dd}
+.map-empty[hidden]{display:none}
+.emu-card[data-view="map"]{height:100%;grid-template-rows:auto minmax(0,1fr)}
+.emu-card[data-view="map"] #ec-n{display:none}
+.emu-card[data-view="map"] .ec-head{justify-content:space-between}
+.emu-card[data-view="map"] .ec-dex,.emu-card[data-view="map"] .ec-open:not(.ec-expand){display:none}
+.emu-card[data-view="map"] .ec-map{display:block}
+.emu-card:not([data-view="map"]) .ec-expand{display:none}
+.emu-card[data-view="map"][data-size="off"]{display:grid}
+.map-view{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
+.map-view[hidden]{display:none}
+.map-view canvas{flex:1;min-height:0;width:100%;touch-action:none;image-rendering:pixelated}
+.map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
+.map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
+.map-info{position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -409,15 +431,23 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
   </div>
 
   <div class="emu-fill" id="emu-fill">
-    <section class="emu-card" id="emu-card" data-size="off" aria-label="Pokédex progress">
-      <div class="ec-head"><b>Pokédex</b><span id="ec-n">0 of 386 caught</span><button class="ec-open" id="ec-open" type="button">Open ›</button></div>
-      <div class="ec-gens">
-        <div id="ec-g1"><label>Kanto</label><div class="bar"><i></i></div><em>0/151</em></div>
-        <div id="ec-g2"><label>Johto</label><div class="bar"><i></i></div><em>0/100</em></div>
-        <div id="ec-g3"><label>Hoenn</label><div class="bar"><i></i></div><em>0/135</em></div>
+    <section class="emu-card" id="emu-card" data-size="off" data-view="dex" aria-label="Pokédex and map">
+      <div class="ec-head"><div class="ec-tabs" role="group" aria-label="Show"><button class="ec-tab" id="ec-tab-dex" type="button" aria-pressed="true">Pokédex</button><button class="ec-tab" id="ec-tab-map" type="button" aria-pressed="false">Map</button></div><span id="ec-n">0 of 386 caught</span><button class="ec-open" id="ec-open" type="button">Open ›</button><button class="ec-open ec-expand" id="ec-expand" type="button">Expand ›</button></div>
+      <div class="ec-dex">
+        <div class="ec-gens">
+          <div id="ec-g1"><label>Kanto</label><div class="bar"><i></i></div><em>0/151</em></div>
+          <div id="ec-g2"><label>Johto</label><div class="bar"><i></i></div><em>0/100</em></div>
+          <div id="ec-g3"><label>Hoenn</label><div class="bar"><i></i></div><em>0/135</em></div>
+        </div>
+        <div class="ec-recent" id="ec-recent" hidden><h3>Newest</h3><div class="ec-sp" id="ec-sp"></div></div>
       </div>
-      <div class="ec-recent" id="ec-recent" hidden><h3>Newest</h3><div class="ec-sp" id="ec-sp"></div></div>
+      <div class="ec-map"><canvas id="map-mini" aria-label="Map of the area you have walked"></canvas><p class="map-empty" id="map-empty">Walk around and the map fills in. It only shows places you have already seen.</p></div>
     </section>
+    <div class="map-view" id="map-view" hidden>
+      <canvas id="map-big" aria-label="Full map"></canvas>
+      <div class="map-bar"><button type="button" id="map-close">Close</button><button type="button" id="map-me">You</button><button type="button" id="map-fit">Fit all</button><button type="button" id="map-clear">Clear</button></div>
+      <p class="map-info" id="map-info"></p>
+    </div>
   </div>
 
   <div class="emu-ctl" id="emu-ctl">
@@ -454,7 +484,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 5</h2>
+    <h2>Menu · build 6</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -462,6 +492,8 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <button class="emu-item" id="mn-imp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Import save</button>
       <button class="emu-item" id="mn-exp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Export save</button>
       <button class="emu-item" id="mn-zoom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg><span id="mn-zoom-t">Zoom: 100%</span></button>
+      <button class="emu-item" id="mn-map" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>Open map</button>
+      <button class="emu-item" id="mn-maprec" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span id="mn-map-t">Map recording: On</span></button>
       <button class="emu-item" id="mn-vol" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol-t">Audio smoothing: Medium</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
       <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>
@@ -1474,7 +1506,7 @@ function renderCard(){
 function fitCard(){
   var fill = $('emu-fill'), card = $('emu-card'); if ($('emu').hidden) return;
   var cs = getComputedStyle(fill), h = fill.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  var order = $('ec-recent').hidden ? ['compact'] : ['full', 'compact'], pick = 'off';
+  var order = card.dataset.view === 'map' ? ['map'] : $('ec-recent').hidden ? ['compact'] : ['full', 'compact'], pick = 'off';
   for (var i = 0; i < order.length; i++){ card.dataset.size = order[i]; if (card.offsetHeight <= h){ pick = order[i]; break; } }
   card.dataset.size = pick;
 }
@@ -1579,6 +1611,7 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
+  if (!window.__gcPatched){ window.__gcPatched = 1; var og = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(t, a){ if (this.id === 'emu-canvas' && /webgl/.test(t)) a = Object.assign({}, a || {}, {preserveDrawingBuffer: true}); return og.call(this, t, a); }; }
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){ try{ M.toggleInput(false); }catch(e){} st.M = M; return M; });
   });
@@ -1986,7 +2019,7 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
-window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep};
+window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu};
 })();
 </script>
 <script>
@@ -2305,6 +2338,230 @@ if (!SR) btn.classList.add('bad');
 setUi();
 
 window.hdpVoice = {parse: parse, handle: handle, MOVES: MOVES, HOENN: HOENN, speciesName: speciesName, parseBattle: parseBattle, snapshot: snapshot, cancel: cancelAll, isOn: function(){ return on; }};
+})();
+</script>
+<script>
+/* Map: stitches what you have seen on screen into a larger picture of the area.
+   It watches how far the game picture scrolls between frames (no game memory needed), paints each frame into a growing
+   image, and starts a new image when the scene changes (a door, a cave, a battle that does not match anything seen). */
+(function(){
+'use strict';
+var A = window.hdpApi; if (!A) return;
+var $ = function(id){ return document.getElementById(id); };
+var W = 240, H = 160, N = W * H;
+var MASK = {x0: 104, y0: 40, x1: 136, y1: 88};          // where the player sprite sits (never trusted over real scenery)
+var GRID_X = [], GRID_Y = [];                              // sample points used for matching
+(function(){ for (var y = 6; y < H - 5; y += 5) for (var x = 6; x < W - 5; x += 5){ if (x >= MASK.x0 && x < MASK.x1 && y >= MASK.y0 && y < MASK.y1) continue; GRID_X.push(x); GRID_Y.push(y); } })();
+var GN = GRID_X.length, MAXAREAS = 6, MAXDIM = 6144;
+
+/* ---------- one stitched area ---------- */
+function Area(){
+  this.cw = 1024; this.ch = 1024; this.cv = document.createElement('canvas'); this.cv.width = this.cw; this.cv.height = this.ch;
+  this.ctx = this.cv.getContext('2d'); this.ox = 384; this.oy = 432;           // world (0,0) sits here inside the canvas
+  this.x = 0; this.y = 0;                                                      // top-left of the screen, in world pixels
+  this.bx0 = 1e9; this.by0 = 1e9; this.bx1 = -1e9; this.by1 = -1e9;           // bounds of what has been painted
+  this.moved = 0; this.rev = 0; this.vx = 0; this.vy = 0;
+}
+Area.prototype.ensure = function(wx, wy){
+  var x0 = wx + this.ox, y0 = wy + this.oy, pad = 256, gl = 0, gt = 0, gr = 0, gb = 0;
+  if (x0 < 0) gl = Math.ceil(-x0 / pad) * pad; if (y0 < 0) gt = Math.ceil(-y0 / pad) * pad;
+  if (x0 + W > this.cw) gr = Math.ceil((x0 + W - this.cw) / pad) * pad; if (y0 + H > this.ch) gb = Math.ceil((y0 + H - this.ch) / pad) * pad;
+  if (!(gl || gt || gr || gb)) return true;
+  var nw = this.cw + gl + gr, nh = this.ch + gt + gb; if (nw > MAXDIM || nh > MAXDIM) return false;
+  var nc = document.createElement('canvas'); nc.width = nw; nc.height = nh; var nx = nc.getContext('2d'); nx.drawImage(this.cv, gl, gt);
+  this.cv = nc; this.ctx = nx; this.cw = nw; this.ch = nh; this.ox += gl; this.oy += gt; return true;
+};
+/* paint the current frame at the area's position; the player box only fills gaps, so the sprite never overwrites scenery */
+Area.prototype.paint = function(frame){
+  if (!this.ensure(this.x, this.y)) return false;
+  var cx = this.x + this.ox, cy = this.y + this.oy, c = this.ctx, M = MASK;
+  c.globalCompositeOperation = 'source-over';
+  c.drawImage(frame, 0, 0, W, M.y0, cx, cy, W, M.y0);
+  c.drawImage(frame, 0, M.y1, W, H - M.y1, cx, cy + M.y1, W, H - M.y1);
+  c.drawImage(frame, 0, M.y0, M.x0, M.y1 - M.y0, cx, cy + M.y0, M.x0, M.y1 - M.y0);
+  c.drawImage(frame, M.x1, M.y0, W - M.x1, M.y1 - M.y0, cx + M.x1, cy + M.y0, W - M.x1, M.y1 - M.y0);
+  c.globalCompositeOperation = 'destination-over';
+  c.drawImage(frame, M.x0, M.y0, M.x1 - M.x0, M.y1 - M.y0, cx + M.x0, cy + M.y0, M.x1 - M.x0, M.y1 - M.y0);
+  c.globalCompositeOperation = 'source-over';
+  this.bx0 = Math.min(this.bx0, this.x); this.by0 = Math.min(this.by0, this.y); this.bx1 = Math.max(this.bx1, this.x + W); this.by1 = Math.max(this.by1, this.y + H);
+  this.rev++; return true;
+};
+
+/* ---------- the tracker ---------- */
+var prev = new Uint8Array(N), cur = new Uint8Array(N), have = false;
+var areas = [], ci = -1, lost = false, stable = 0, coh = 0, lostFrames = 0, enabled = true, frames = 0;
+function luma(d, out){ for (var i = 0, j = 0; j < N; i += 4, j++) out[j] = (d[i] * 77 + d[i + 1] * 151 + d[i + 2] * 28) >> 8; }
+function changed(a, b){ var n = 0, t = 0; for (var i = 0; i < N; i += 7){ t++; var d = a[i] - b[i]; if (d > 20 || d < -20) n++; } return n / t; }
+function mean(a){ var s = 0, c = 0; for (var i = 0; i < N; i += 11){ s += a[i]; c++; } return s / c; }
+/* how much of the new frame (a) equals the old frame (b) when the camera moved by (dx,dy): a(x,y) ~ b(x+dx,y+dy) */
+function match(a, b, dx, dy){
+  var ok = 0, tot = 0;
+  for (var k = 0; k < GN; k++){
+    var x = GRID_X[k], y = GRID_Y[k], bx = x + dx, by = y + dy;
+    if (bx < 0 || by < 0 || bx >= W || by >= H) continue;
+    tot++; var d = a[y * W + x] - b[by * W + bx]; if (d < 13 && d > -13) ok++;
+  }
+  return tot > 200 ? ok / tot : 0;
+}
+function hintDir(){ var s = A.st.held || {}; return {x: (s.Right ? 1 : 0) - (s.Left ? 1 : 0), y: (s.Down ? 1 : 0) - (s.Up ? 1 : 0)}; }
+function estimate(a, b, ar){
+  var f0 = match(a, b, 0, 0); if (f0 >= 0.97) return {dx: 0, dy: 0, f: f0};
+  var h = hintDir(), best = null, bs = -1;
+  function tryD(dx, dy){
+    var f = dx === 0 && dy === 0 ? f0 : match(a, b, dx, dy);
+    var s = f + (dx === ar.vx && dy === ar.vy ? 0.003 : 0) + ((h.x && dx * h.x > 0) || (h.y && dy * h.y > 0) ? 0.004 : 0) - 0.0004 * (Math.abs(dx) + Math.abs(dy));
+    if (s > bs){ bs = s; best = {dx: dx, dy: dy, f: f}; }
+  }
+  for (var j = -1; j <= 1; j++) for (var i = -1; i <= 1; i++) tryD(ar.vx + i, ar.vy + j);
+  tryD(0, 0);
+  if (best.f >= 0.9) return best;
+  for (var y = -8; y <= 8; y++) for (var x = -8; x <= 8; x++) tryD(x, y);
+  return best;
+}
+/* does the current frame fit onto an existing area at its last position? (used after fades, battles, menus) */
+var probe = document.createElement('canvas'); probe.width = W; probe.height = H; var pctx = probe.getContext('2d', {willReadFrequently: true});
+function fitsArea(ar){
+  var cx = ar.x + ar.ox, cy = ar.y + ar.oy; if (cx < 0 || cy < 0 || cx + W > ar.cw || cy + H > ar.ch) return 0;
+  pctx.clearRect(0, 0, W, H); pctx.drawImage(ar.cv, cx, cy, W, H, 0, 0, W, H);
+  var d = pctx.getImageData(0, 0, W, H).data, ok = 0, tot = 0, painted = 0;
+  for (var k = 0; k < GN; k++){
+    var p = GRID_Y[k] * W + GRID_X[k]; painted++;
+    if (d[p * 4 + 3] < 255) continue;
+    tot++; var l = (d[p * 4] * 77 + d[p * 4 + 1] * 151 + d[p * 4 + 2] * 28) >> 8, df = cur[p] - l; if (df < 13 && df > -13) ok++;
+  }
+  return tot > painted * 0.25 ? ok / tot : 0;
+}
+function newArea(frame){
+  var ar = new Area(); areas.push(ar); if (areas.length > MAXAREAS) areas.shift(); ci = areas.length - 1; ar.paint(frame); lost = false; return ar;
+}
+function swap(){ var t = prev; prev = cur; cur = t; }
+
+/* one captured frame in: `data` is RGBA, `frame` a canvas holding the same picture */
+function feed(data, frame){
+  frames++; luma(data, cur);
+  if (!have){ prev.set(cur); have = true; stable = 0; coh = 0; lost = true; return; }
+  var ch = changed(cur, prev), m = mean(cur);
+  var ar = ci >= 0 ? areas[ci] : null;
+  if (lost || !ar){
+    var e0 = m > 14 ? estimate(cur, prev, {vx: 0, vy: 0}) : {f: 0};
+    coh = e0.f >= 0.9 ? coh + 1 : 0; lostFrames++;
+    if (coh >= 8){
+      for (var i = areas.length - 1; i >= 0; i--) if (fitsArea(areas[i]) >= 0.55){ ci = i; lost = false; coh = 0; lostFrames = 0; swap(); return; }
+      if (coh >= 24){ newArea(frame); lostFrames = 0; coh = 0; }
+    }
+    swap(); return;
+  }
+  if (ch < 0.02){ swap(); return; }                                    // nothing moved
+  if (m < 10 || Math.abs(m - mean(prev)) > 25){ lost = true; stable = 0; coh = 0; lostFrames = 0; swap(); return; }   // fade to or from black
+  var e = estimate(cur, prev, ar);
+  if (e.f < 0.45){ lost = true; stable = 0; coh = 0; lostFrames = 0; swap(); return; }
+  if (e.dx || e.dy){ ar.x += e.dx; ar.y += e.dy; ar.vx = e.dx; ar.vy = e.dy; ar.moved++; ar.paint(frame); }
+  swap();
+}
+
+/* ---------- capture loop ---------- */
+var scr = document.createElement('canvas'); scr.width = W; scr.height = H; var sctx = scr.getContext('2d', {willReadFrequently: true});
+var cvs = $('emu-canvas');
+function tick(){
+  if (enabled && A.st.running && A.st.view === 'game'){
+    try{ sctx.drawImage(cvs, 0, 0, W, H); feed(sctx.getImageData(0, 0, W, H).data, scr); }catch(e){}
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ---------- views ---------- */
+function current(){ return ci >= 0 ? areas[ci] : null; }
+function youAt(ar){ return {x: ar.x + 120, y: ar.y + 72}; }
+function drawView(canvas, ar, cx, cy, scale, you){
+  var c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  c.imageSmoothingEnabled = false; c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+  if (!ar) return;
+  var sx = cx - w / 2 / scale, sy = cy - h / 2 / scale;
+  c.drawImage(ar.cv, sx + ar.ox, sy + ar.oy, w / scale, h / scale, 0, 0, w, h);
+  if (you !== false){
+    var p = youAt(ar), px = (p.x - sx) * scale, py = (p.y - sy) * scale, r = Math.max(5, 7 * scale * 0.6);
+    c.lineWidth = Math.max(2, 2 * (window.devicePixelRatio || 1)); c.strokeStyle = '#fff'; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
+    c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#2de08a'; c.beginPath(); c.arc(px, py, r + c.lineWidth, 0, 6.2832); c.stroke();
+  }
+}
+
+/* the small map that replaces the Pokédex card contents */
+var mini = $('map-mini'), lastRev = -1, lastKey = '';
+function sizeCanvas(cv){
+  var d = window.devicePixelRatio || 1, w = Math.round(cv.clientWidth * d), h = Math.round(cv.clientHeight * d);
+  if (w && h && (cv.width !== w || cv.height !== h)){ cv.width = w; cv.height = h; return true; } return false;
+}
+function renderMini(){
+  var card = $('emu-card'); if (!card || card.dataset.view !== 'map' || card.dataset.size === 'off') return;
+  var ar = current(), re = sizeCanvas(mini), d = window.devicePixelRatio || 1, scale = Math.max(1, Math.round(d * 0.75));   // whole device pixels per game pixel
+  var key = ar ? ar.rev + ':' + ci + ':' + ar.x + ':' + ar.y + ':' + mini.width : 'none:' + mini.width;
+  if (!re && key === lastKey) return; lastKey = key;
+  var p = ar ? youAt(ar) : {x: 0, y: 0};
+  drawView(mini, ar, p.x, p.y, scale, true);
+  $('map-empty').hidden = !!(ar && ar.moved > 2);
+}
+setInterval(renderMini, 150);
+
+/* the full-screen viewer: drag to move around, pinch to zoom */
+var big = $('map-big'), view = {cx: 0, cy: 0, s: 2}, vpts = {}, vpinch = null, vdrag = null;
+function renderBig(){
+  if ($('map-view').hidden) return; sizeCanvas(big);
+  var d = window.devicePixelRatio || 1; drawView(big, current(), view.cx, view.cy, view.s * d, true);
+}
+function centerBig(){
+  var ar = current(); if (!ar){ view.cx = view.cy = 0; return; }
+  var w = ar.bx1 - ar.bx0, h = ar.by1 - ar.by0, cw = big.clientWidth || 360, ch = big.clientHeight || 600;
+  view.cx = (ar.bx0 + ar.bx1) / 2; view.cy = (ar.by0 + ar.by1) / 2; view.s = Math.max(0.5, Math.min(4, Math.min(cw / w, ch / h) * 0.95));
+}
+function openBig(){ $('map-view').hidden = false; var ar = current(), p = ar ? youAt(ar) : {x: 0, y: 0}; centerBig(); sizeCanvas(big); renderBig(); $('map-info').textContent = ar ? areas.length + ' area' + (areas.length > 1 ? 's' : '') + ' remembered' : 'Nothing mapped yet'; }
+function closeBig(){ $('map-view').hidden = true; }
+function ids(){ return Object.keys(vpts); }
+big.addEventListener('pointerdown', function(e){
+  vpts[e.pointerId] = [e.clientX, e.clientY]; try{ big.setPointerCapture(e.pointerId); }catch(x){}
+  if (ids().length === 2){ var k = ids(); vpinch = {d0: Math.hypot(vpts[k[0]][0] - vpts[k[1]][0], vpts[k[0]][1] - vpts[k[1]][1]) || 1, s0: view.s}; vdrag = null; }
+  else vdrag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy};
+});
+big.addEventListener('pointermove', function(e){
+  if (!vpts[e.pointerId]) return; vpts[e.pointerId] = [e.clientX, e.clientY];
+  if (vpinch && ids().length === 2){ var k = ids(); view.s = Math.max(0.4, Math.min(8, vpinch.s0 * Math.hypot(vpts[k[0]][0] - vpts[k[1]][0], vpts[k[0]][1] - vpts[k[1]][1]) / vpinch.d0)); renderBig(); }
+  else if (vdrag){ view.cx = vdrag.cx - (e.clientX - vdrag.x) / view.s; view.cy = vdrag.cy - (e.clientY - vdrag.y) / view.s; renderBig(); }
+});
+function vend(e){ delete vpts[e.pointerId]; if (ids().length < 2) vpinch = null; if (ids().length === 1){ var k = ids()[0]; vdrag = {x: vpts[k][0], y: vpts[k][1], cx: view.cx, cy: view.cy}; } else if (!ids().length) vdrag = null; }
+big.addEventListener('pointerup', vend); big.addEventListener('pointercancel', vend);
+$('map-close').addEventListener('click', closeBig);
+$('map-me').addEventListener('click', function(){ var ar = current(); if (!ar) return; var p = youAt(ar); view.cx = p.x; view.cy = p.y; renderBig(); });
+$('map-fit').addEventListener('click', function(){ centerBig(); renderBig(); });
+$('map-clear').addEventListener('click', function(){
+  if (!confirmClear){ confirmClear = true; $('map-clear').textContent = 'Tap again to clear'; setTimeout(function(){ confirmClear = false; $('map-clear').textContent = 'Clear'; }, 3000); return; }
+  confirmClear = false; $('map-clear').textContent = 'Clear'; clearAll(); renderBig();
+});
+var confirmClear = false;
+function clearAll(){ areas = []; ci = -1; lost = true; have = false; stable = 0; lastKey = ''; renderMini(); }
+setInterval(renderBig, 250);
+window.addEventListener('resize', function(){ lastKey = ''; renderBig(); });
+
+/* card tabs: Pokédex | Map */
+function setView(v){
+  var card = $('emu-card'); card.dataset.view = v; try{ localStorage.setItem('hdp-cardview', v); }catch(e){}
+  $('ec-tab-dex').setAttribute('aria-pressed', v === 'dex'); $('ec-tab-map').setAttribute('aria-pressed', v === 'map');
+  if (A.fitCard) A.fitCard(); lastKey = ''; renderMini();
+}
+$('ec-tab-dex').addEventListener('click', function(){ setView('dex'); });
+$('ec-tab-map').addEventListener('click', function(){ setView('map'); });
+$('ec-expand').addEventListener('click', openBig);
+$('map-mini').addEventListener('click', openBig);
+$('mn-map').addEventListener('click', function(){ if (A.closeMenu) A.closeMenu(false); openBig(); });
+function setEnabled(on){
+  enabled = on; try{ localStorage.setItem('hdp-map', on ? '1' : '0'); }catch(e){}
+  $('mn-map-t').textContent = 'Map recording: ' + (on ? 'On' : 'Off'); if (!on){ have = false; lost = true; }
+}
+$('mn-maprec').addEventListener('click', function(){ setEnabled(!enabled); });
+try{ if (localStorage.getItem('hdp-map') === '0') enabled = false; }catch(e){}
+$('mn-map-t').textContent = 'Map recording: ' + (enabled ? 'On' : 'Off');
+try{ setView(localStorage.getItem('hdp-cardview') === 'map' ? 'map' : 'dex'); }catch(e){ setView('dex'); }
+requestAnimationFrame(tick);
+
+window.hdpMap = {feed: feed, areas: function(){ return areas; }, current: current, clear: clearAll, state: function(){ return {frames: frames, lost: lost, area: ci, areas: areas.length, x: current() && current().x, y: current() && current().y, moved: current() && current().moved}; }, scr: scr, sctx: sctx, setView: setView, openBig: openBig, closeBig: closeBig};
 })();
 </script>
 </body></html>
