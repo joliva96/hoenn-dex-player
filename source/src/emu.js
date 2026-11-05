@@ -543,5 +543,5 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
-window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu};
+window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu, play: play, pause: pause};
 })();

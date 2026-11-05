@@ -170,8 +170,9 @@ function centerBig(){
   var w = ar.bx1 - ar.bx0, h = ar.by1 - ar.by0, cw = big.clientWidth || 360, ch = big.clientHeight || 600;
   view.cx = (ar.bx0 + ar.bx1) / 2; view.cy = (ar.by0 + ar.by1) / 2; view.s = Math.max(0.5, Math.min(4, Math.min(cw / w, ch / h) * 0.95));
 }
-function openBig(){ $('map-view').hidden = false; var ar = current(), p = ar ? youAt(ar) : {x: 0, y: 0}; centerBig(); sizeCanvas(big); renderBig(); $('map-info').textContent = ar ? areas.length + ' area' + (areas.length > 1 ? 's' : '') + ' remembered' : 'Nothing mapped yet'; }
-function closeBig(){ $('map-view').hidden = true; }
+var bigResume = false;
+function openBig(was){ if (!$('map-view').hidden) return; bigResume = (was === true) || A.st.running; if (A.st.running && A.pause) A.pause(); $('map-view').hidden = false; var ar = current(), p = ar ? youAt(ar) : {x: 0, y: 0}; centerBig(); sizeCanvas(big); renderBig(); $('map-info').textContent = ar ? areas.length + ' area' + (areas.length > 1 ? 's' : '') + ' remembered' : 'Nothing mapped yet'; }
+function closeBig(){ $('map-view').hidden = true; if (bigResume && A.play) A.play(); bigResume = false; }
 function ids(){ return Object.keys(vpts); }
 big.addEventListener('pointerdown', function(e){
   vpts[e.pointerId] = [e.clientX, e.clientY]; try{ big.setPointerCapture(e.pointerId); }catch(x){}
@@ -205,9 +206,9 @@ function setView(v){
 }
 $('ec-tab-dex').addEventListener('click', function(){ setView('dex'); });
 $('ec-tab-map').addEventListener('click', function(){ setView('map'); });
-$('ec-expand').addEventListener('click', openBig);
-$('map-mini').addEventListener('click', openBig);
-$('mn-map').addEventListener('click', function(){ if (A.closeMenu) A.closeMenu(false); openBig(); });
+$('ec-expand').addEventListener('click', function(){ openBig(); });
+$('map-mini').addEventListener('click', function(){ openBig(); });
+$('mn-map').addEventListener('click', function(){ var was = !!(A.st.running || A.st.resumeAfterMenu); A.closeMenu(false); A.st.resumeAfterMenu = false; openBig(was); });
 function setEnabled(on){
   enabled = on; try{ localStorage.setItem('hdp-map', on ? '1' : '0'); }catch(e){}
   $('mn-map-t').textContent = 'Map recording: ' + (on ? 'On' : 'Off'); if (!on){ have = false; lost = true; }
