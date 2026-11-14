@@ -307,7 +307,7 @@ $('mn-vol').addEventListener('click', function(){
 });
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
-  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else st.hz = Math.round(n * 1000 / (t - t0)); }
+  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); var P = st.pace; if (P && P.mode === 'screen' && st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} } } }
   requestAnimationFrame(f);
 }
 /* Keeping the game and the sound in step.
@@ -320,19 +320,21 @@ function paceWatch(){
   if (st.pace || !st.M) return;
   var P = st.pace = {mode: 'screen', v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ P.n++; }}); }catch(e){ st.pace = null; return; }
+  /* A fast screen (>= 70 Hz) would run the game far too fast until the first measurement: take over from the first frame. */
+  if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
   setInterval(function(){
     var s2 = st.M && st.M.SDL2, ctx = s2 && s2.audioContext;
     if (!st.running || !ctx || ctx.state !== 'running'){ P.t0 = null; return; }
     var now = ctx.currentTime;
     if (P.t0 === null){ P.t0 = now; P.n0 = P.n; return; }
-    var dt = now - P.t0; if (dt < 2.5) return;
+    var dt = now - P.t0; if (dt < (P.mode === 'timer' && P.settled ? 3 : 1.5)) return;
     var rate = (P.n - P.n0) / dt, ratio = rate / GB; P.t0 = now; P.n0 = P.n;
     if (rate < 10) return;   /* a hiccup (tab in the background, loading): not a measurement */
     P.ratio = ratio; st.rate = Math.round(rate * 100) / 100; st.hzScreenRate = rate;
     if (P.mode === 'screen'){
       if (Math.abs(ratio - 1) > 0.0015){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
     } else if (Math.abs(ratio - 1) > 0.0004){
-      P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1) * 0.8))); try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
+      P.settled = Math.abs(ratio - 1) < 0.004; P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1)))); try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
     }
     st.tv = P.v;
   }, 1000);
@@ -640,5 +642,6 @@ Promise.all([kvGet('rom'), kvGet('visits')]).then(function(r){
   } else splash('norom');
 });
 window.hdp = st;
+try{ measureHz(); }catch(e){}   /* learn the screen's refresh while the page loads, before the game starts */
 window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu, play: play, pause: pause};
 })();
