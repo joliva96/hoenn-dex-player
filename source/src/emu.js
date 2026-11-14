@@ -36,7 +36,7 @@ function fitCard(){
   card.dataset.size = pick;
 }
 $('ec-open').addEventListener('click', function(){ openDex(); });
-$('ec-sp').addEventListener('click', function(e){ var b = e.target.closest('.ec-s'); if (!b) return; openDex(); window.hdfDex.show(+b.getAttribute('data-d')); });
+$('ec-sp').addEventListener('click', function(e){ var b = e.target.closest('.ec-s'); if (!b) return; if (dexPop()){ dexWin.postMessage({hdfShow: +b.getAttribute('data-d')}, location.origin); dexWin.focus(); return; } openDex(); window.hdfDex.show(+b.getAttribute('data-d')); });
 function toast(html, ms){
   $('emu-toast-t').innerHTML = html; $('emu-toast').hidden = false;
   clearTimeout(st.toastTimer); st.toastTimer = setTimeout(function(){ $('emu-toast').hidden = true; }, ms || 4500);
@@ -166,6 +166,9 @@ $('mn-rate').addEventListener('click', function(){
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
 /* ---------- engine option B: EmulatorJS (libretro mGBA, used when the page sets window.__EJS) ---------- */
+var DEXONLY = /[?&]pane=dex\b/.test(location.search);   /* the Pokédex in its own window: this page copy never starts the game */
+var dexWin = null;
+function dexPop(){ return dexWin && !dexWin.closed ? dexWin : null; }
 var EJS = true;   /* the EmulatorJS engine is the only engine now */
 var JOY = {B:0, Select:2, Start:3, Up:4, Down:5, Left:6, Right:7, A:8, L:10, R:11};   /* RetroArch pad numbers */
 function gmr(){ return window.EJS_emulator && window.EJS_emulator.gameManager; }
@@ -695,7 +698,7 @@ function openDex(){
   window.dispatchEvent(new Event('resize')); window.scrollTo(0, dexScroll);
 }
 function openGame(){
-  if (st.view === 'game') return;
+  if (DEXONLY || st.view === 'game') return;
   dexScroll = window.scrollY; st.view = 'game';
   $('dexroot').hidden = true; $('emu').hidden = false; root.classList.add('emu-on'); window.scrollTo(0, 0); fitScreen(); updateLens(); fitCard();
   if (st.started) { play(); }
@@ -795,6 +798,7 @@ document.addEventListener('keydown', function(e){
   if (typing(e) || e.metaKey || e.altKey) return;
   var plain = !e.ctrlKey && !e.shiftKey;
   if (e.code === 'KeyP' && plain && !e.repeat){   /* Pokédex finder <-> game */
+    if (dexPop()){ dexWin.focus(); return; }
     if (st.view === 'dex') openGame(); else openDex();
     e.preventDefault(); return;
   }
@@ -849,6 +853,18 @@ function toggleFull(){
 
 /* ---------- start ---------- */
 try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+window.addEventListener('storage', function(e){ if (e.key === 'hdf-caught') setTimeout(function(){ try{ updateLens(); fitCard(); }catch(x){} }, 50); });
+$('mn-dexpop').addEventListener('click', function(){
+  closeMenu(true);
+  if (dexPop()){ dexWin.focus(); return; }
+  dexWin = window.open(location.pathname + '?pane=dex', 'hdp-dex', 'popup=yes,width=560,height=900');
+  if (!dexWin) toast('Your browser blocked the new window. Allow pop-ups for this site and try again.', 6000);
+});
+if (DEXONLY){
+  document.title = 'Hoenn Pokédex'; document.documentElement.classList.add('dex-only');
+  $('emu').hidden = true; root.classList.remove('emu-on'); $('dexroot').hidden = false; st.view = 'dex';
+  window.hdp = st; window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu, play: play, pause: pause}; return;
+}
 $('dexroot').hidden = true; root.classList.add('emu-on');
 fitScreen(); updateLens();
 splash('loading', 'Starting…');

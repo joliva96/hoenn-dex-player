@@ -26,6 +26,9 @@ window.hdfDex = {
     return fresh;
   }
 };
+/* the Pokédex in its own window: follow the other window's changes, and jump to a Pokémon when asked */
+window.addEventListener('storage', function(e){ if (e.key === 'hdf-caught'){ loadLocal(); paintAll(); refreshCounts(); refreshCline(); } });
+window.addEventListener('message', function(e){ if (e.origin === location.origin && e.data && e.data.hdfShow){ goFinder(e.data.hdfShow); } });
 '''
 idx=main_js.rindex('})();')
 main_js=main_js[:idx]+hook+main_js[idx:]

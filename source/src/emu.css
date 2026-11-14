@@ -180,3 +180,5 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
 .emu-desk-only{display:none}
 @media (hover:hover) and (pointer:fine){.emu-desk-only{display:flex}}
+.dex-only #tab-game{display:none}
+.dex-only .tabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}

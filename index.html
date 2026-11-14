@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 36)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 37)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -453,6 +453,8 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
 .emu-desk-only{display:none}
 @media (hover:hover) and (pointer:fine){.emu-desk-only{display:flex}}
+.dex-only #tab-game{display:none}
+.dex-only .tabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -530,7 +532,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 36</h2>
+    <h2>Menu · build 37</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -540,6 +542,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
       <button class="emu-item" id="mn-zoom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg><span id="mn-zoom-t">Zoom: 100%</span></button>
       <button class="emu-item" id="mn-map" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>Open map</button>
       <button class="emu-item emu-desk-only" id="mn-mappop" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5H5V6h5"/></svg>Map in its own window</button>
+      <button class="emu-item emu-desk-only" id="mn-dexpop" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5H5V6h5"/></svg>Pokédex in its own window</button>
       <button class="emu-item" id="mn-soft" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-soft-t">Sound softening: Off</span></button>
       <button class="emu-item" id="mn-rate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rate-t">Sound rate: Automatic</span></button>
       <button class="emu-item" id="mn-vol2" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol2-t">Volume: 100%</span></button>
@@ -1519,6 +1522,9 @@ window.hdfDex = {
     return fresh;
   }
 };
+/* the Pokédex in its own window: follow the other window's changes, and jump to a Pokémon when asked */
+window.addEventListener('storage', function(e){ if (e.key === 'hdf-caught'){ loadLocal(); paintAll(); refreshCounts(); refreshCline(); } });
+window.addEventListener('message', function(e){ if (e.origin === location.origin && e.data && e.data.hdfShow){ goFinder(e.data.hdfShow); } });
 })();
 </script>
 <script>
@@ -1560,7 +1566,7 @@ function fitCard(){
   card.dataset.size = pick;
 }
 $('ec-open').addEventListener('click', function(){ openDex(); });
-$('ec-sp').addEventListener('click', function(e){ var b = e.target.closest('.ec-s'); if (!b) return; openDex(); window.hdfDex.show(+b.getAttribute('data-d')); });
+$('ec-sp').addEventListener('click', function(e){ var b = e.target.closest('.ec-s'); if (!b) return; if (dexPop()){ dexWin.postMessage({hdfShow: +b.getAttribute('data-d')}, location.origin); dexWin.focus(); return; } openDex(); window.hdfDex.show(+b.getAttribute('data-d')); });
 function toast(html, ms){
   $('emu-toast-t').innerHTML = html; $('emu-toast').hidden = false;
   clearTimeout(st.toastTimer); st.toastTimer = setTimeout(function(){ $('emu-toast').hidden = true; }, ms || 4500);
@@ -1690,6 +1696,9 @@ $('mn-rate').addEventListener('click', function(){
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
 /* ---------- engine option B: EmulatorJS (libretro mGBA, used when the page sets window.__EJS) ---------- */
+var DEXONLY = /[?&]pane=dex\b/.test(location.search);   /* the Pokédex in its own window: this page copy never starts the game */
+var dexWin = null;
+function dexPop(){ return dexWin && !dexWin.closed ? dexWin : null; }
 var EJS = true;   /* the EmulatorJS engine is the only engine now */
 var JOY = {B:0, Select:2, Start:3, Up:4, Down:5, Left:6, Right:7, A:8, L:10, R:11};   /* RetroArch pad numbers */
 function gmr(){ return window.EJS_emulator && window.EJS_emulator.gameManager; }
@@ -2219,7 +2228,7 @@ function openDex(){
   window.dispatchEvent(new Event('resize')); window.scrollTo(0, dexScroll);
 }
 function openGame(){
-  if (st.view === 'game') return;
+  if (DEXONLY || st.view === 'game') return;
   dexScroll = window.scrollY; st.view = 'game';
   $('dexroot').hidden = true; $('emu').hidden = false; root.classList.add('emu-on'); window.scrollTo(0, 0); fitScreen(); updateLens(); fitCard();
   if (st.started) { play(); }
@@ -2319,6 +2328,7 @@ document.addEventListener('keydown', function(e){
   if (typing(e) || e.metaKey || e.altKey) return;
   var plain = !e.ctrlKey && !e.shiftKey;
   if (e.code === 'KeyP' && plain && !e.repeat){   /* Pokédex finder <-> game */
+    if (dexPop()){ dexWin.focus(); return; }
     if (st.view === 'dex') openGame(); else openDex();
     e.preventDefault(); return;
   }
@@ -2373,6 +2383,18 @@ function toggleFull(){
 
 /* ---------- start ---------- */
 try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+window.addEventListener('storage', function(e){ if (e.key === 'hdf-caught') setTimeout(function(){ try{ updateLens(); fitCard(); }catch(x){} }, 50); });
+$('mn-dexpop').addEventListener('click', function(){
+  closeMenu(true);
+  if (dexPop()){ dexWin.focus(); return; }
+  dexWin = window.open(location.pathname + '?pane=dex', 'hdp-dex', 'popup=yes,width=560,height=900');
+  if (!dexWin) toast('Your browser blocked the new window. Allow pop-ups for this site and try again.', 6000);
+});
+if (DEXONLY){
+  document.title = 'Hoenn Pokédex'; document.documentElement.classList.add('dex-only');
+  $('emu').hidden = true; root.classList.remove('emu-on'); $('dexroot').hidden = false; st.view = 'dex';
+  window.hdp = st; window.hdpApi = {st: st, setKey: setKey, toast: toast, zoomStep: zoomStep, fitCard: fitCard, closeMenu: closeMenu, play: play, pause: pause}; return;
+}
 $('dexroot').hidden = true; root.classList.add('emu-on');
 fitScreen(); updateLens();
 splash('loading', 'Starting…');
