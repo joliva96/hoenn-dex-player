@@ -177,3 +177,6 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 /* the engine's own (unstyled) controls and pop-ups must never show; its sound-resume prompt is replaced by our Play button */
 #ejs-host,.ejs_parent,.ejs_menu_bar,.ejs_context_menu,.ejs_virtualGamepad_parent{visibility:hidden!important;pointer-events:none!important}
 .ejs_popup_container{display:none!important}
+
+.emu-desk-only{display:none}
+@media (hover:hover) and (pointer:fine){.emu-desk-only{display:flex}}

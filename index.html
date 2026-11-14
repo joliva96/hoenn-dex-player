@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 35)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 36)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -450,6 +450,9 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 /* the engine's own (unstyled) controls and pop-ups must never show; its sound-resume prompt is replaced by our Play button */
 #ejs-host,.ejs_parent,.ejs_menu_bar,.ejs_context_menu,.ejs_virtualGamepad_parent{visibility:hidden!important;pointer-events:none!important}
 .ejs_popup_container{display:none!important}
+
+.emu-desk-only{display:none}
+@media (hover:hover) and (pointer:fine){.emu-desk-only{display:flex}}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -487,7 +490,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
     </section>
     <div class="map-view" id="map-view" hidden>
       <div class="map-stage"><canvas id="map-big" aria-label="Full map"></canvas></div>
-      <div class="map-bar"><button type="button" id="map-back" hidden>Back</button><button type="button" id="map-close">Close</button><button type="button" id="map-me">You</button><button type="button" id="map-fit">Fit all</button></div>
+      <div class="map-bar"><button type="button" id="map-back" hidden>Back</button><button type="button" id="map-close">Close</button><button type="button" id="map-me">You</button><button type="button" id="map-fit">Fit all</button><button type="button" id="map-full" hidden>Full screen</button></div>
       <p class="map-info" id="map-info"></p>
     </div>
   </div>
@@ -527,7 +530,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 35</h2>
+    <h2>Menu · build 36</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -536,6 +539,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
       <button class="emu-item" id="mn-exp" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>Export save</button>
       <button class="emu-item" id="mn-zoom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg><span id="mn-zoom-t">Zoom: 100%</span></button>
       <button class="emu-item" id="mn-map" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>Open map</button>
+      <button class="emu-item emu-desk-only" id="mn-mappop" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5H5V6h5"/></svg>Map in its own window</button>
       <button class="emu-item" id="mn-soft" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-soft-t">Sound softening: Off</span></button>
       <button class="emu-item" id="mn-rate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rate-t">Sound rate: Automatic</span></button>
       <button class="emu-item" id="mn-vol2" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol2-t">Volume: 100%</span></button>
@@ -2711,7 +2715,9 @@ window.hdpVoice = {parse: parse, handle: handle, MOVES: MOVES, HOENN: HOENN, spe
 (function(){
 'use strict';
 var A = window.hdpApi; if (!A) return;
-var $ = function(id){ return document.getElementById(id); };
+function dpr(){ try{ var b = document.getElementById('map-big') || (pop && pop.document.getElementById('map-big')); var w = b && b.ownerDocument.defaultView; return (w || window).devicePixelRatio || 1; }catch(e){ return 1; } }
+var pop = null, popped = false, popHome = null, popMV = null;   // the map's own window (desktop)
+var $ = function(id){ return document.getElementById(id) || (popped && popMV ? popMV.ownerDocument.getElementById(id) : null); };
 var PLACE = [[0,40,232,30,30],[1,200,260,40,60],[2,200,140,40,20],[3,0,122,40,60],[4,320,0,40,20],[5,480,70,80,40],[6,640,100,80,40],[8,760,180,40,80],[9,120,282,20,20],[10,120,242,20,20],[11,60,362,20,20],[12,140,60,20,20],[13,80,0,20,20],[14,120,140,20,20],[15,480,260,20,40],[16,120,262,20,20],[17,70,242,50,20],[18,120,220,80,22],[19,0,182,40,80],[20,0,262,40,80],[21,0,342,80,20],[22,80,360,60,20],[23,140,360,60,20],[24,200,320,40,63],[25,200,160,40,100],[26,200,0,40,140],[27,160,20,40,60],[28,100,0,100,20],[29,40,2,40,80],[30,0,42,40,80],[31,40,122,100,20],[32,140,140,60,20],[33,240,140,80,20],[34,280,0,40,140],[35,360,0,40,100],[36,400,80,80,20],[37,420,100,40,40],[38,320,140,140,20],[39,560,60,80,80],[40,640,60,80,40],[41,560,140,80,80],[42,640,140,80,80],[43,640,220,120,40],[44,640,260,80,40],[45,560,260,80,40],[46,500,260,60,40],[47,400,260,80,40],[48,320,260,80,40],[49,240,260,80,40]];                       // [map number in group 0, x, y, width, height] in tiles, from the game's own map-connection data
 var WW = 816, WH = 395, MX = 8, MY = 6;      // world size in tiles including the scenery margin around the edge
 var GROUPS = 0x486578, SB1PTR = 0x5D8C;  // table of map groups in the game file; where the game keeps the pointer to its player data
@@ -2969,7 +2975,7 @@ function roomList(R){ return R.warps; }
 function drawView(cv, cx, cy, s, tappable){
   var c = cv.getContext('2d'), w = cv.width, h = cv.height; c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
   if (!G.ready) return;
-  var sx = cx - w / 2 / s, sy = cy - h / 2 / s, d0 = window.devicePixelRatio || 1;
+  var sx = cx - w / 2 / s, sy = cy - h / 2 / s, d0 = dpr() || 1;
   if (G.room){
     var R = G.room; c.imageSmoothingEnabled = false;
     blit(c, R.cv, (sx + MR) * 16, (sy + MR) * 16, w / s * 16, h / s * 16, w, h);
@@ -2992,12 +2998,12 @@ function drawView(cv, cx, cy, s, tappable){
   }
   if (tappable && s >= 3) marks(c, worldWarps(), sx, sy, s, w, h, d0);
   if (G.last){
-    var px = (G.last.x - sx) * s, py = (G.last.y - sy) * s, d = window.devicePixelRatio || 1, r = Math.max(7 * d, Math.min(s * 0.7, 16 * d));
+    var px = (G.last.x - sx) * s, py = (G.last.y - sy) * s, d = dpr() || 1, r = Math.max(7 * d, Math.min(s * 0.7, 16 * d));
     dot(c, px, py, r, G.indoors ? '#ffb020' : '#ff3b30', d);
   }
 }
 function sizeCanvas(cv){
-  var d = window.devicePixelRatio || 1, w = Math.round(cv.clientWidth * d), h = Math.round(cv.clientHeight * d);
+  var d = dpr() || 1, w = Math.round(cv.clientWidth * d), h = Math.round(cv.clientHeight * d);
   if (w && h && (cv.width !== w || cv.height !== h)){ cv.width = w; cv.height = h; return true; } return false;
 }
 function setMsg(t){ var e = $('map-empty'); if (!e) return; e.textContent = t; e.hidden = !t; }
@@ -3006,7 +3012,7 @@ function miniVisible(){ var c = $('emu-card'); return c && c.dataset.view === 'm
 function visible(){ return miniVisible() || !$('map-view').hidden; }
 function renderMini(){
   if (!miniVisible() || !G.ready) return; var re = sizeCanvas(mini); if (!re && !dirty) return; dirty = false;
-  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300};
+  var d = dpr() || 1, c = G.last || {x: 150, y: 300};
   if (G.room){ var R = G.room, hp = hereOf(R); drawView(mini, hp ? hp.x : R.w / 2, hp ? hp.y : R.h / 2, Math.round((DESKM.matches ? 14 : 10) * d)); return; }
   drawView(mini, c.x, c.y, Math.round((DESKM.matches ? 12 : 8) * d));
 }
@@ -3015,7 +3021,7 @@ setInterval(poll, 2000);
 
 /* ---------- the full-screen viewer: drag to move, pinch to zoom ---------- */
 var tapInfo = null, big = $('map-big'), view = {cx: 0, cy: 0, s: 2}, vpts = {}, vpinch = null, vdrag = null, bigResume = false;
-function renderBig(){ if ($('map-view').hidden || !G.ready) return; sizeCanvas(big); drawView(big, view.cx, view.cy, view.s * (window.devicePixelRatio || 1), true); }
+function renderBig(){ if ($('map-view').hidden || !G.ready) return; sizeCanvas(big); drawView(big, view.cx, view.cy, view.s * (dpr() || 1), true); }
 function fitView(){ var cw = big.clientWidth || 360, ch = big.clientHeight || 600; view.cx = WW / 2; view.cy = WH / 2; view.s = Math.min(cw / WW, ch / WH) * 0.98; }
 function fitRoom(R, at){
   var cw = big.clientWidth || 360, ch = big.clientHeight || 600;
@@ -3053,13 +3059,14 @@ function goBack(){
 }
 function syncBack(){ var b = $('map-back'); if (b) b.hidden = !G.stack.length; dirty = true; try{ info(); }catch(e){} }
 function tapAt(clientX, clientY){
-  var rect = big.getBoundingClientRect(), d = window.devicePixelRatio || 1, s = view.s;
+  var rect = big.getBoundingClientRect(), d = dpr() || 1, s = view.s;
   var tx = view.cx + (clientX - rect.left - rect.width / 2) / s, ty = view.cy + (clientY - rect.top - rect.height / 2) / s;
   var list = G.room ? roomList(G.room) : (s >= 3 ? worldWarps() : []), best = null, bd = Math.max(0.8, 18 / s);
   for (var i = 0; i < list.length; i++){ var dd = Math.hypot(list[i].x - tx, list[i].y - ty); if (dd < bd){ bd = dd; best = list[i]; } }
   if (best) goWarp(best);
 }
 function openBig(was){
+  if (popped){ try{ pop.focus(); }catch(e){} return; }
   if (!$('map-view').hidden) return;
   G.stack = []; syncBack();
   bigResume = (was === true) || A.st.running; if (A.st.running && A.pause) A.pause();
@@ -3067,6 +3074,32 @@ function openBig(was){
   ensure(function(){ if (G.err) return; fitView(); if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = 5; } if (G.room){ var R0 = G.room, hp0 = hereOf(R0); fitRoom(R0, hp0 || undefined); } info(); renderBig(); });
   poke();
 }
+/* the map in its own browser window (for a second monitor): the same map view is moved into the new window, so it keeps updating; the game keeps running */
+function popOut(){
+  if (popped && pop && !pop.closed){ pop.focus(); return; }
+  var w = window.open('', 'hdp-map', 'popup=yes,width=1100,height=720'); if (!w){ A.toast && A.toast('Your browser blocked the new window. Allow pop-ups for this site and try again.', 6000); return; }
+  var d = w.document; d.open(); d.write('<!doctype html><html><head><meta charset="utf-8"><title>Hoenn map</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#000"></body></html>'); d.close();
+  Array.prototype.forEach.call(document.querySelectorAll('style, link[rel=stylesheet]'), function(n){ d.head.appendChild(n.cloneNode(true)); });
+  d.documentElement.className = document.documentElement.className; d.body.className = document.body.className;
+  var mv = document.getElementById('map-view'); if (!mv) return;
+  popMV = mv; popHome = {parent: mv.parentNode, next: mv.nextSibling, was: !mv.hidden};
+  d.body.appendChild(d.adoptNode(mv)); pop = w; popped = true; mv.hidden = false; $('map-full').hidden = false;
+  w.addEventListener('resize', function(){ renderBig(); });
+  w.addEventListener('pagehide', popIn);
+  w.addEventListener('keydown', function(e){ if (e.code === 'KeyF') goFull(); });
+  window.addEventListener('pagehide', function(){ try{ w.close(); }catch(e){} });
+  G.stack = []; syncBack();
+  ensure(function(){ if (G.err) return; fitView(); if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = 5; } if (G.room){ var R0 = G.room, hp0 = hereOf(R0); fitRoom(R0, hp0 || undefined); } info(); renderBig(); });
+  poke(); setTimeout(renderBig, 300);
+}
+function popIn(){
+  if (!popped) return; popped = false;
+  var mv = popMV, w = pop; pop = null;
+  if (mv && popHome){ var m2 = document.adoptNode(mv); popHome.parent.insertBefore(m2, popHome.next); }
+  var m = document.getElementById('map-view'); if (m){ m.hidden = true; var f = document.getElementById('map-full'); if (f) f.hidden = true; }
+  dirty = true;
+}
+function goFull(){ try{ var d = (pop && !pop.closed) ? pop.document : document; if (d.fullscreenElement) d.exitFullscreen(); else d.documentElement.requestFullscreen(); }catch(e){} }
 function poke(){   /* one position read right away when the map opens */
   if (A.st.running && window.hdpVoice && G.ready) poll();
 }
@@ -3076,7 +3109,8 @@ function info(){
   else t = G.indoors ? 'You are indoors. The marker shows the last spot outside.' : (G.last ? (view.s >= 3 ? 'Tap a blue door marker to look inside.' : '') : 'Your spot appears once you are playing.');
   $('map-info').textContent = t;
 }
-function closeBig(){ $('map-view').hidden = true; if (bigResume && A.play) A.play(); bigResume = false; dirty = true; }
+function closeBig(){ if (popped){ var pw = pop; popIn(); try{ pw.close(); }catch(e){} return; }
+  $('map-view').hidden = true; if (bigResume && A.play) A.play(); bigResume = false; dirty = true; }
 function ids(){ return Object.keys(vpts); }
 big.addEventListener('pointerdown', function(e){
   vpts[e.pointerId] = [e.clientX, e.clientY]; try{ big.setPointerCapture(e.pointerId); }catch(x){}
@@ -3097,6 +3131,8 @@ big.addEventListener('pointerup', function(e){
 }); big.addEventListener('pointercancel', vend);
 big.addEventListener('wheel', function(e){ e.preventDefault(); view.s = Math.max(0.4, Math.min(40, view.s * Math.exp(-e.deltaY * 0.0015))); renderBig(); }, {passive: false});
 $('map-close').addEventListener('click', closeBig);
+$('map-full').addEventListener('click', goFull);
+$('mn-mappop').addEventListener('click', function(){ A.closeMenu(true); A.st.resumeAfterMenu = false; popOut(); });
 $('map-back').addEventListener('click', goBack);
 $('map-me').addEventListener('click', function(){ meView(); renderBig(); });
 $('map-fit').addEventListener('click', function(){ fitAll(); renderBig(); });
