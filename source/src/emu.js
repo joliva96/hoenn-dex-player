@@ -375,6 +375,11 @@ function recordSound(){
   }
 }
 $('mn-rec').addEventListener('click', function(){ closeMenu(); recordSound(); });
+$('mn-tune').addEventListener('click', function(){
+  var P = st.pace; closeMenu();
+  if (!P || P.mode !== 'timer' || !st.running){ toast('Start the game first. (Retune only works while the game is running on its timer.)', 4000); return; }
+  P.burst = 2; toast('Sound retuned. Listen for a few seconds: if the crunch stopped, tell me.', 4000);
+});
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
   function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); var P = st.pace; if (P && P.mode === 'screen' && st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} } } }
@@ -392,7 +397,7 @@ function paceWatch(){
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
     P.n++;
     /* Browsers round timer delays to whole milliseconds (16 ms = 62.5 fps, 17 ms = 58.8 fps, never 59.7), so mix 16s and 17s to average the exact delay wanted. */
-    if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
+    if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; if (P.burst > 0){ P.burst--; ms = 0; } else if (P.burst < 0){ P.burst++; ms += 17; } try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
   }}); }catch(e){ st.pace = null; return; }
   /* A fast screen (>= 70 Hz) would run the game far too fast until the first measurement: take over from the first frame. */
   if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }

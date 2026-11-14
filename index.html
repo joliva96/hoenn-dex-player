@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 20)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 21)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 20</h2>
+    <h2>Menu · build 21</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -532,6 +532,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <button class="emu-item" id="mn-soft" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-soft-t">Sound softening: Off</span></button>
       <button class="emu-item" id="mn-rate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rate-t">Sound rate: Automatic</span></button>
       <button class="emu-item" id="mn-rec" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rec-t">Record 8 s of sound (.wav)</span></button>
+      <button class="emu-item" id="mn-tune" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-tune-t">Retune sound (tap if it crunches)</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
       <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>
       <button class="emu-item quiet" id="mn-close" type="button">Close</button>
@@ -1888,6 +1889,11 @@ function recordSound(){
   }
 }
 $('mn-rec').addEventListener('click', function(){ closeMenu(); recordSound(); });
+$('mn-tune').addEventListener('click', function(){
+  var P = st.pace; closeMenu();
+  if (!P || P.mode !== 'timer' || !st.running){ toast('Start the game first. (Retune only works while the game is running on its timer.)', 4000); return; }
+  P.burst = 2; toast('Sound retuned. Listen for a few seconds: if the crunch stopped, tell me.', 4000);
+});
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
   function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); var P = st.pace; if (P && P.mode === 'screen' && st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} } } }
@@ -1905,7 +1911,7 @@ function paceWatch(){
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
     P.n++;
     /* Browsers round timer delays to whole milliseconds (16 ms = 62.5 fps, 17 ms = 58.8 fps, never 59.7), so mix 16s and 17s to average the exact delay wanted. */
-    if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
+    if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; if (P.burst > 0){ P.burst--; ms = 0; } else if (P.burst < 0){ P.burst++; ms += 17; } try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
   }}); }catch(e){ st.pace = null; return; }
   /* A fast screen (>= 70 Hz) would run the game far too fast until the first measurement: take over from the first frame. */
   if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
