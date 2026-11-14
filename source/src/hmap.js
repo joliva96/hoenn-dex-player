@@ -183,6 +183,13 @@ function setPos(g, n, x, y){
 }
 
 /* ---------- drawing ---------- */
+/* draw part of a picture; the part is cut to the picture's edges by hand, because iPhone Safari stretches the result when asked for a part that sticks out */
+function blit(c, img, sx, sy, sw, sh, dw, dh){
+  var iw = img.width, ih = img.height, kx = dw / sw, ky = dh / sh;
+  var x0 = Math.max(sx, 0), y0 = Math.max(sy, 0), x1 = Math.min(sx + sw, iw), y1 = Math.min(sy + sh, ih);
+  if (x1 <= x0 || y1 <= y0) return;
+  c.drawImage(img, x0, y0, x1 - x0, y1 - y0, (x0 - sx) * kx, (y0 - sy) * ky, (x1 - x0) * kx, (y1 - y0) * ky);
+}
 function dot(c, px, py, r, col, d){
   c.lineWidth = 3 * d; c.strokeStyle = '#fff'; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
   c.lineWidth = 2 * d; c.strokeStyle = col; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
@@ -203,12 +210,12 @@ function drawView(cv, cx, cy, s, tappable){
   var sx = cx - w / 2 / s, sy = cy - h / 2 / s, d0 = window.devicePixelRatio || 1;
   if (G.room){
     var R = G.room; c.imageSmoothingEnabled = false;
-    c.drawImage(R.cv, (sx + MR) * 16, (sy + MR) * 16, w / s * 16, h / s * 16, 0, 0, w, h);
+    blit(c, R.cv, (sx + MR) * 16, (sy + MR) * 16, w / s * 16, h / s * 16, w, h);
     if (tappable) marks(c, roomList(R), sx, sy, s, w, h, d0);
     if (G.pos && G.pos.g === R.g && G.pos.n === R.n){ var qx = (G.pos.x + 0.5 - sx) * s, qy = (G.pos.y + 0.5 - sy) * s; dot(c, qx, qy, Math.max(7 * d0, Math.min(s * 0.7, 16 * d0)), '#ffb020', d0); }
     return;
   }
-  if (s < 5){ c.imageSmoothingEnabled = true; c.drawImage(G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, 0, 0, w, h); }
+  if (s < 5){ c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); }
   else {
     c.imageSmoothingEnabled = false;
     var x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy)), x1 = Math.min(WW, Math.ceil(sx + w / s)), y1 = Math.min(WH, Math.ceil(sy + h / s));

@@ -396,6 +396,14 @@ ctl.addEventListener('pointerdown', function(e){
 ctl.addEventListener('pointermove', function(e){ if (st.pointers[e.pointerId]){ st.pointers[e.pointerId] = [e.clientX, e.clientY]; apply(); e.preventDefault(); } });
 function up(e){ if (st.pointers[e.pointerId]){ delete st.pointers[e.pointerId]; apply(); } }
 ctl.addEventListener('pointerup', up); ctl.addEventListener('pointercancel', up); ctl.addEventListener('lostpointercapture', up);
+/* iPhone: stop the press-and-hold magnifier / selection on the game buttons and map (not on the Menu and mic buttons, which need their normal click) */
+document.addEventListener('touchstart', function(e){
+  var t = e.target; if (!t || !t.closest) return;
+  if (t.closest('#emu-menu, #emu-mic, #emu-sheet, #emu-scrim, .map-bar')) return;
+  if (t.closest('#emu-ctl, .emu-screen, #map-big')) e.preventDefault();
+}, {passive: false});
+document.addEventListener('selectstart', function(e){ var t = e.target && (e.target.nodeType === 1 ? e.target : e.target.parentElement); if (t && t.closest && t.closest('#emu')) e.preventDefault(); });
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
 document.addEventListener('contextmenu', function(e){ if ($('emu').contains(e.target)) e.preventDefault(); });
 window.addEventListener('blur', releaseAll);
 
