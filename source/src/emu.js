@@ -136,11 +136,27 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 var RATES = [0, 32768, 44100, 96000], RATEN = ['Automatic', '32768 Hz (Game Boy native)', '44100 Hz', '96000 Hz'];
 function rateIdx(){ try{ var v = +localStorage.getItem('hdp-rate'); return v >= 0 && v < RATES.length ? v : 0; }catch(e){ return 0; } }
 function rateLabel(){ $('mn-rate-t').textContent = 'Sound rate: ' + RATEN[rateIdx()]; }
+/* Sound latency: how much safety margin the browser keeps between the page and the headphones. "Safe" asks for a bigger one (the Web Audio "playback" hint). Applies after a full restart. */
+var LATH = ['interactive', 'balanced', 'playback'], LATN = ['Normal', 'Medium', 'Safe'];
+function latIdx(){ try{ var v = +localStorage.getItem('hdp-lat'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
+function latLabel(){ $('mn-lat-t').textContent = 'Sound latency: ' + LATN[latIdx()]; }
 (function(){
-  var r = RATES[rateIdx()], AC = window.AudioContext; if (!r || !AC) return;
-  var W = function(o){ try{ return new AC(Object.assign({}, o, {sampleRate: r})); }catch(e){ return new AC(o); } };
+  var r = RATES[rateIdx()], li = latIdx(), AC = window.AudioContext; if ((!r && !li) || !AC) return;
+  var W = function(o){ var opt = Object.assign({}, o); if (r) opt.sampleRate = r; if (li) opt.latencyHint = LATH[li]; try{ return new AC(opt); }catch(e){ return new AC(o); } };
   W.prototype = AC.prototype; window.AudioContext = W;
 })();
+$('mn-lat').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-lat', String((latIdx() + 1) % 3)); }catch(e){}
+  latLabel(); toast('Sound latency: ' + LATN[latIdx()] + '. Fully close and reopen the page to apply.', 5000);
+});
+/* Volume: our own gain control after the engine (the engine's own setting does nothing). Changes instantly. */
+var VOLS = [1, 0.7, 0.5, 0.35];
+function volIdx(){ try{ var v = +localStorage.getItem('hdp-vol'); return v >= 0 && v < 4 ? v : 0; }catch(e){ return 0; } }
+function volLabel(){ $('mn-vol2-t').textContent = 'Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%'; }
+$('mn-vol2').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-vol', String((volIdx() + 1) % 4)); }catch(e){}
+  volLabel(); applySoft(); toast('Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%', 2000);
+});
 $('mn-rate').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
@@ -337,8 +353,11 @@ function applySoft(){
     if (st.lpNode !== node){   /* (re)wire: engine -> filter -> speakers */
       try{ node.disconnect(); }catch(e){}
       try{ st.lp.disconnect(); }catch(e){}
-      node.connect(st.lp); st.lp.connect(ctx.destination); st.lpNode = node;
+      if (!st.gain){ st.gain = ctx.createGain(); }
+      try{ st.gain.disconnect(); }catch(e){}
+      node.connect(st.lp); st.lp.connect(st.gain); st.gain.connect(ctx.destination); st.lpNode = node;
     }
+    if (st.gain) st.gain.gain.value = VOLS[volIdx()];
     st.lp.frequency.value = i ? SOFT[i] : Math.min(ctx.sampleRate / 2 - 100, 22000);
   }catch(e){}
 }
@@ -408,7 +427,7 @@ function watchAudioCalls(){
 }
 function stallInfo(){
   var A = st.aw, P = st.pace; if (!A || !P) return '';
-  return ' · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
+  return ' · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
 }
 function paceWatch(){
   if (st.pace || !st.M) return;
@@ -455,7 +474,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); rateLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')

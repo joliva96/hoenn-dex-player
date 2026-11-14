@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 24)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 25)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 24</h2>
+    <h2>Menu · build 25</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -531,6 +531,8 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <button class="emu-item" id="mn-vol" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol-t">Audio smoothing: Medium</span></button>
       <button class="emu-item" id="mn-soft" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-soft-t">Sound softening: Off</span></button>
       <button class="emu-item" id="mn-rate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rate-t">Sound rate: Automatic</span></button>
+      <button class="emu-item" id="mn-lat" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-lat-t">Sound latency: Normal</span></button>
+      <button class="emu-item" id="mn-vol2" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol2-t">Volume: 100%</span></button>
       <button class="emu-item" id="mn-rec" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rec-t">Record 8 s of sound (.wav)</span></button>
       <button class="emu-item" id="mn-tune" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-tune-t">Retune sound (tap if it crunches)</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
@@ -1650,11 +1652,27 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 var RATES = [0, 32768, 44100, 96000], RATEN = ['Automatic', '32768 Hz (Game Boy native)', '44100 Hz', '96000 Hz'];
 function rateIdx(){ try{ var v = +localStorage.getItem('hdp-rate'); return v >= 0 && v < RATES.length ? v : 0; }catch(e){ return 0; } }
 function rateLabel(){ $('mn-rate-t').textContent = 'Sound rate: ' + RATEN[rateIdx()]; }
+/* Sound latency: how much safety margin the browser keeps between the page and the headphones. "Safe" asks for a bigger one (the Web Audio "playback" hint). Applies after a full restart. */
+var LATH = ['interactive', 'balanced', 'playback'], LATN = ['Normal', 'Medium', 'Safe'];
+function latIdx(){ try{ var v = +localStorage.getItem('hdp-lat'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
+function latLabel(){ $('mn-lat-t').textContent = 'Sound latency: ' + LATN[latIdx()]; }
 (function(){
-  var r = RATES[rateIdx()], AC = window.AudioContext; if (!r || !AC) return;
-  var W = function(o){ try{ return new AC(Object.assign({}, o, {sampleRate: r})); }catch(e){ return new AC(o); } };
+  var r = RATES[rateIdx()], li = latIdx(), AC = window.AudioContext; if ((!r && !li) || !AC) return;
+  var W = function(o){ var opt = Object.assign({}, o); if (r) opt.sampleRate = r; if (li) opt.latencyHint = LATH[li]; try{ return new AC(opt); }catch(e){ return new AC(o); } };
   W.prototype = AC.prototype; window.AudioContext = W;
 })();
+$('mn-lat').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-lat', String((latIdx() + 1) % 3)); }catch(e){}
+  latLabel(); toast('Sound latency: ' + LATN[latIdx()] + '. Fully close and reopen the page to apply.', 5000);
+});
+/* Volume: our own gain control after the engine (the engine's own setting does nothing). Changes instantly. */
+var VOLS = [1, 0.7, 0.5, 0.35];
+function volIdx(){ try{ var v = +localStorage.getItem('hdp-vol'); return v >= 0 && v < 4 ? v : 0; }catch(e){ return 0; } }
+function volLabel(){ $('mn-vol2-t').textContent = 'Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%'; }
+$('mn-vol2').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-vol', String((volIdx() + 1) % 4)); }catch(e){}
+  volLabel(); applySoft(); toast('Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%', 2000);
+});
 $('mn-rate').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
@@ -1851,8 +1869,11 @@ function applySoft(){
     if (st.lpNode !== node){   /* (re)wire: engine -> filter -> speakers */
       try{ node.disconnect(); }catch(e){}
       try{ st.lp.disconnect(); }catch(e){}
-      node.connect(st.lp); st.lp.connect(ctx.destination); st.lpNode = node;
+      if (!st.gain){ st.gain = ctx.createGain(); }
+      try{ st.gain.disconnect(); }catch(e){}
+      node.connect(st.lp); st.lp.connect(st.gain); st.gain.connect(ctx.destination); st.lpNode = node;
     }
+    if (st.gain) st.gain.gain.value = VOLS[volIdx()];
     st.lp.frequency.value = i ? SOFT[i] : Math.min(ctx.sampleRate / 2 - 100, 22000);
   }catch(e){}
 }
@@ -1922,7 +1943,7 @@ function watchAudioCalls(){
 }
 function stallInfo(){
   var A = st.aw, P = st.pace; if (!A || !P) return '';
-  return ' · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
+  return ' · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
 }
 function paceWatch(){
   if (st.pace || !st.M) return;
@@ -1969,7 +1990,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); rateLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
