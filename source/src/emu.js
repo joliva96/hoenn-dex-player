@@ -222,7 +222,7 @@ function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
-  measureHz(); paceWatch(); applySoft(); setTimeout(applySoft, 800);
+  measureHz(); paceWatch(); watchAudioCalls(); applySoft(); setTimeout(applySoft, 800);
   if (st.pace){ st.pace.hist = []; st.pace.v = st.pace.good; }
   st.running = true; hideSplash(); wake();
 }
@@ -396,11 +396,26 @@ function measureHz(){
    the overflow gets dropped, and you hear a skip or a crunch every few seconds. A slower screen starves the sound card instead.
    So the app counts game frames against the sound card's own clock. If they disagree by more than a hair it hands the pacing to the engine's timer and keeps nudging that timer
    until game frames and sound match, which also fixes the game running too fast on 120 / 144 / 240 Hz screens. */
+function watchAudioCalls(){
+  var S = st.M && st.M.SDL2, node = S && S.audio && S.audio.scriptProcessorNode;
+  if (!node || node.__watched) return; node.__watched = true;
+  var f = node.onaudioprocess, ctx = S.audioContext, A = st.aw = {n: 0, late: 0, maxGap: 0, maxRun: 0, t: 0, exp: node.bufferSize / ctx.sampleRate * 1000};
+  if (typeof f !== 'function') return;
+  node.onaudioprocess = function(e){
+    var t0 = performance.now(); if (A.t){ var g = t0 - A.t; if (g > A.maxGap) A.maxGap = g; if (g > A.exp * 1.6) A.late++; } A.t = t0; A.n++;
+    var r = f.call(this, e); var d = performance.now() - t0; if (d > A.maxRun) A.maxRun = d; return r;
+  };
+}
+function stallInfo(){
+  var A = st.aw, P = st.pace; if (!A || !P) return '';
+  return ' · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
+}
 function paceWatch(){
   if (st.pace || !st.M) return;
-  var P = st.pace = {mode: 'screen', acc: 0, v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
+  var P = st.pace = {fLate: 0, fMax: 0, fT: 0, mode: 'screen', acc: 0, v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
     P.n++;
+    var fn = performance.now(); if (P.fT){ var fg = fn - P.fT; if (fg > P.fMax) P.fMax = fg; if (fg > 28) P.fLate++; } P.fT = fn;
     /* Browsers round timer delays to whole milliseconds (16 ms = 62.5 fps, 17 ms = 58.8 fps, never 59.7), so mix 16s and 17s to average the exact delay wanted. */
     if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; if (P.burst > 0){ P.burst--; ms = 0; } else if (P.burst < 0){ P.burst++; ms += 17; } try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
   }}); }catch(e){ st.pace = null; return; }
@@ -435,7 +450,7 @@ function paceWatch(){
 }
 function audioInfo(){
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
-    return n && c ? (window.__BETA ? 'BETA engine · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
+    return n && c ? (window.__BETA ? 'BETA engine · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') + stallInfo() : ''; }catch(e){ return ''; }
 }
 
 /* ---------- menu ---------- */
