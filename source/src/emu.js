@@ -318,8 +318,12 @@ function measureHz(){
    until game frames and sound match, which also fixes the game running too fast on 120 / 144 / 240 Hz screens. */
 function paceWatch(){
   if (st.pace || !st.M) return;
-  var P = st.pace = {mode: 'screen', v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
-  try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ P.n++; }}); }catch(e){ st.pace = null; return; }
+  var P = st.pace = {mode: 'screen', acc: 0, v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
+  try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
+    P.n++;
+    /* Browsers round timer delays to whole milliseconds (16 ms = 62.5 fps, 17 ms = 58.8 fps, never 59.7), so mix 16s and 17s to average the exact delay wanted. */
+    if (P.mode === 'timer'){ P.acc += P.v; var ms = Math.floor(P.acc); P.acc -= ms; try{ st.M.setMainLoopTiming(0, ms); }catch(e){} }
+  }}); }catch(e){ st.pace = null; return; }
   /* A fast screen (>= 70 Hz) would run the game far too fast until the first measurement: take over from the first frame. */
   if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
   /* The sound card's clock only ticks in coarse steps (about 40 ms with this buffer), so a short measurement can be off by several percent and make the speed swing up and down,
