@@ -135,7 +135,9 @@ function hideSplash(){ $('emu-splash').hidden = true; }
 /* ---------- sound rate: ask the browser for a particular sound-card rate (32768 Hz is the Game Boy's own, so nothing has to be converted inside the engine). Applies after a full restart. ---------- */
 var RATES = [0, 32768, 44100, 96000], RATEN = ['Automatic', '32768 Hz (Game Boy native)', '44100 Hz', '96000 Hz'];
 function rateIdx(){ try{ var v = +localStorage.getItem('hdp-rate'); return v >= 0 && v < RATES.length ? v : 0; }catch(e){ return 0; } }
-function rateLabel(){ $('mn-rate-t').textContent = 'Sound rate: ' + RATEN[rateIdx()]; }
+var EBUF = [64, 128, 256], EBUFN = ['Normal', 'Larger', 'Largest'];   /* V2 engine: how many ms of sound it keeps ready (applies after a restart) */
+function ebufIdx(){ try{ var v = +localStorage.getItem('hdp-ebuf'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
+function rateLabel(){ $('mn-rate-t').textContent = EJS ? 'Sound buffer: ' + EBUFN[ebufIdx()] : 'Sound rate: ' + RATEN[rateIdx()]; }
 /* Sound latency: how much safety margin the browser keeps between the page and the headphones. "Safe" asks for a bigger one (the Web Audio "playback" hint). Applies after a full restart. */
 var LATH = ['interactive', 'balanced', 'playback'], LATN = ['Normal', 'Medium', 'Safe'];
 function latIdx(){ try{ var v = +localStorage.getItem('hdp-lat'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
@@ -158,6 +160,7 @@ $('mn-vol2').addEventListener('click', function(){
   volLabel(); applySoft(); ejsVol(); toast('Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%', 2000);
 });
 $('mn-rate').addEventListener('click', function(){
+  if (EJS){ try{ localStorage.setItem('hdp-ebuf', String((ebufIdx() + 1) % 3)); }catch(e){} rateLabel(); toast('Sound buffer: ' + EBUFN[ebufIdx()] + '. Applies after you restart the game (Menu, Restart).', 5000); return; }
   try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
@@ -186,14 +189,14 @@ function startGameEJS(){
       document.body.appendChild(host);
       var done = false, to = setTimeout(function(){ if (!done) rej(new Error('The game engine took too long to start.')); }, 60000);
       window.EJS_player = '#ejs-host'; window.EJS_core = 'gba'; window.EJS_gameName = 'pokemon'; window.EJS_pathtodata = 'ejs/';
-      window.EJS_gameUrl = URL.createObjectURL(new Blob([st.rom.buf])); window.EJS_startOnLoaded = true; window.EJS_DEBUG_XX = true; window.EJS_noAutoFocus = true;
+      window.EJS_gameUrl = URL.createObjectURL(new Blob([st.rom.buf])); window.EJS_startOnLoaded = true; window.EJS_DEBUG_XX = true; window.EJS_noAutoFocus = true; window.EJS_audioLatency = EBUF[ebufIdx()];
       window.EJS_disableLocalStorage = true;
       window.EJS_Buttons = {playPause:false, restart:false, mute:false, settings:false, fullscreen:false, saveState:false, loadState:false, screenRecord:false, gamepad:false, cheat:false, volume:false, saveSavFiles:false, loadSavFiles:false, quickSave:false, quickLoad:false, screenshot:false, cacheManager:false, exitEmulation:false, netplay:false, diskButton:false, contextMenu:false};
       window.EJS_onGameStart = function(){
         if (done) return; done = true; clearTimeout(to);
         try{
           var g = gmr(), E = window.EJS_emulator;
-          g.toggleMainLoop(0);
+          g.toggleMainLoop(0); applySoft();
           var cv = E.canvas, old = $('emu-canvas');
           cv.removeAttribute('class'); cv.id = 'emu-canvas'; cv.setAttribute('aria-label', 'Game screen'); cv.removeAttribute('style');
           old.parentNode.replaceChild(cv, old);
@@ -407,7 +410,9 @@ $('mn-vol').addEventListener('click', function(){
 var SOFT = [0, 12000, 8000, 5500], SOFTN = ['Off', 'Light', 'Medium', 'Strong'];
 function softIdx(){ try{ var v = +localStorage.getItem('hdp-soft'); return v >= 0 && v < 4 ? v : 0; }catch(e){ return 0; } }
 function softLabel(){ $('mn-soft-t').textContent = 'Sound softening: ' + SOFTN[softIdx()]; }
+var ESOFT = [0, 30, 60, 85];
 function applySoft(){
+  if (EJS){ try{ var g = gmr(), i = softIdx(); if (g){ g.setVariable('mgba_audio_low_pass_filter', i ? 'enabled' : 'disabled'); if (i) g.setVariable('mgba_audio_low_pass_range', String(ESOFT[i])); } }catch(e){} return; }
   try{
     var A = st.M && st.M.SDL2 && st.M.SDL2.audio, ctx = st.M.SDL2.audioContext, node = A && A.scriptProcessorNode;
     if (!node) return;
@@ -550,7 +555,7 @@ function audioInfo(){
 /* ---------- menu ---------- */
 function openMenu(){
   abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
-  if (EJS) ['mn-vol', 'mn-soft', 'mn-rate', 'mn-lat', 'mn-rec', 'mn-tune'].forEach(function(id){ var b = $(id); if (b) b.hidden = true; });
+  if (EJS) ['mn-vol', 'mn-lat', 'mn-rec', 'mn-tune'].forEach(function(id){ var b = $(id); if (b) b.hidden = true; });
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
