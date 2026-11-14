@@ -328,6 +328,40 @@ $('mn-soft').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-soft', String((softIdx() + 1) % 4)); }catch(e){}
   softLabel(); applySoft(); toast('Sound softening: ' + SOFTN[softIdx()], 2500);
 });
+/* ---------- sound recorder: saves 8 seconds of exactly what the engine sends to the speakers as a .wav file, with a quick health check ---------- */
+function recordSound(){
+  var A = st.M && st.M.SDL2 && st.M.SDL2.audio, ctx = st.M && st.M.SDL2 && st.M.SDL2.audioContext, node = A && A.scriptProcessorNode;
+  if (!node || !st.running){ toast('Start the game first, then record while the music plays.', 4000); return; }
+  if (st.recording) return; st.recording = true;
+  var N = 4096, rec = ctx.createScriptProcessor(N, 2, 2), mute = ctx.createGain(), L = [], R = [], T = [], total = 0, want = ctx.sampleRate * 8;
+  mute.gain.value = 0; node.connect(rec); rec.connect(mute); mute.connect(ctx.destination);
+  toast('Recording 8 seconds… keep playing.', 8500);
+  rec.onaudioprocess = function(e){
+    L.push(new Float32Array(e.inputBuffer.getChannelData(0))); R.push(new Float32Array(e.inputBuffer.getChannelData(1))); T.push(performance.now()); total += N;
+    if (total >= want) finish();
+  };
+  function finish(){
+    rec.onaudioprocess = null; try{ node.disconnect(rec); rec.disconnect(); mute.disconnect(); }catch(e){} st.recording = false;
+    var n = total, out = new DataView(new ArrayBuffer(44 + n * 4)), o = 0, i, k, peak = 0, zeroBlocks = 0, clip = 0, maxGap = 0;
+    function w(str){ for (var q = 0; q < str.length; q++) out.setUint8(o++, str.charCodeAt(q)); }
+    w('RIFF'); out.setUint32(o, 36 + n * 4, true); o += 4; w('WAVEfmt '); out.setUint32(o, 16, true); o += 4; out.setUint16(o, 1, true); o += 2; out.setUint16(o, 2, true); o += 2;
+    out.setUint32(o, ctx.sampleRate, true); o += 4; out.setUint32(o, ctx.sampleRate * 4, true); o += 4; out.setUint16(o, 4, true); o += 2; out.setUint16(o, 16, true); o += 2; w('data'); out.setUint32(o, n * 4, true); o += 4;
+    for (i = 0; i < L.length; i++){
+      var z = true;
+      for (k = 0; k < N; k++){
+        var a = L[i][k], b = R[i][k]; if (a !== 0 || b !== 0) z = false; if (Math.abs(a) > peak) peak = Math.abs(a); if (Math.abs(a) >= 0.99) clip++;
+        out.setInt16(o, Math.max(-1, Math.min(1, a)) * 32767, true); o += 2; out.setInt16(o, Math.max(-1, Math.min(1, b)) * 32767, true); o += 2;
+      }
+      if (z) zeroBlocks++; if (i) maxGap = Math.max(maxGap, T[i] - T[i - 1]);
+    }
+    var blob = new Blob([out.buffer], {type: 'audio/wav'}), a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob); a2.download = 'hoenn-sound-build' + (document.title.match(/build (\d+)/) || [0, '?'])[1] + '.wav'; document.body.appendChild(a2); a2.click();
+    setTimeout(function(){ a2.remove(); URL.revokeObjectURL(a2.href); }, 4000);
+    var exp = N / ctx.sampleRate * 1000;
+    toast('Saved ' + a2.download + '. Check: loudest ' + peak.toFixed(2) + ', silent blocks ' + zeroBlocks + ' of ' + L.length + ', slowest block ' + Math.round(maxGap) + ' ms (normal ' + Math.round(exp) + ').', 12000);
+  }
+}
+$('mn-rec').addEventListener('click', function(){ closeMenu(); recordSound(); });
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
   function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); var P = st.pace; if (P && P.mode === 'screen' && st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} } } }
