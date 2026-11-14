@@ -6,7 +6,7 @@ var A = window.hdpApi; if (!A) return;
 function dpr(){ try{ var b = document.getElementById('map-big') || (pop && pop.document.getElementById('map-big')); var w = b && b.ownerDocument.defaultView; return (w || window).devicePixelRatio || 1; }catch(e){ return 1; } }
 var pop = null, popped = false, popHome = null, popMV = null;   // the map's own window (desktop)
 var $ = function(id){ return document.getElementById(id) || (popped && popMV ? popMV.ownerDocument.getElementById(id) : null); };
-var PLACE = [[0,40,232,30,30],[1,200,260,40,60],[2,200,140,40,20],[3,0,122,40,60],[4,320,0,40,20],[5,480,70,80,40],[6,640,100,80,40],[8,760,180,40,80],[9,120,282,20,20],[10,120,242,20,20],[11,60,362,20,20],[12,140,60,20,20],[13,80,0,20,20],[14,120,140,20,20],[15,480,260,20,40],[16,120,262,20,20],[17,70,242,50,20],[18,120,220,80,22],[19,0,182,40,80],[20,0,262,40,80],[21,0,342,80,20],[22,80,360,60,20],[23,140,360,60,20],[24,200,320,40,63],[25,200,160,40,100],[26,200,0,40,140],[27,160,20,40,60],[28,100,0,100,20],[29,40,2,40,80],[30,0,42,40,80],[31,40,122,100,20],[32,140,140,60,20],[33,240,140,80,20],[34,280,0,40,140],[35,360,0,40,100],[36,400,80,80,20],[37,420,100,40,40],[38,320,140,140,20],[39,560,60,80,80],[40,640,60,80,40],[41,560,140,80,80],[42,640,140,80,80],[43,640,220,120,40],[44,640,260,80,40],[45,560,260,80,40],[46,500,260,60,40],[47,400,260,80,40],[48,320,260,80,40],[49,240,260,80,40]];                       // [map number in group 0, x, y, width, height] in tiles, from the game's own map-connection data
+var PLACE = [[0,40,232,30,30],[1,200,260,40,60],[2,200,140,40,20],[3,0,122,40,60],[4,320,0,40,20],[5,480,70,80,40],[6,640,100,80,40],[8,760,180,40,80],[9,120,282,20,20],[10,120,242,20,20],[11,60,362,20,20],[12,140,60,20,20],[13,80,0,20,20],[14,120,140,20,20],[15,480,260,20,40],[16,120,262,20,20],[17,70,242,50,20],[18,120,220,80,22],[19,0,182,40,80],[20,0,262,40,80],[21,0,342,80,20],[22,80,360,60,20],[23,140,360,60,20],[24,200,320,40,63],[25,200,160,40,100],[26,200,0,40,140],[27,160,20,40,60],[28,100,0,100,20],[29,40,2,40,80],[30,0,42,40,80],[31,40,122,100,20],[32,140,140,60,20],[33,240,140,80,20],[34,280,0,40,140],[35,360,0,40,100],[36,400,80,80,20],[37,420,100,40,40],[38,320,140,140,20],[39,560,60,80,80],[40,640,60,80,40],[41,560,140,80,80],[42,640,140,80,80],[43,640,220,120,40],[44,640,260,80,40],[45,560,260,80,40],[46,500,260,60,40],[47,400,260,80,40],[48,320,260,80,40],[49,240,260,80,40],[65,597,313,56,72,25],[75,653,313,72,72,25],[70,336,364,33,30,25]];   /* the last three (6th number = map group) are Battle Frontier (west, east) and the small island south of Pacifidlog's sea, found by matching the game's maps to the reference picture */                       // [map number in group 0, x, y, width, height] in tiles, from the game's own map-connection data
 var WW = 816, WH = 395, MX = 8, MY = 6;      // world size in tiles including the scenery margin around the edge
 var FILLRLE = '6,d,8,j,5,4,8,v,b,1j,1q,4,5,3d,7x,d,8,g,1k,1j,1q,4,5,3j,7r,d,8,4,1w,4,e,7,h,d,1w,4,5,d,3,3a,7l,d,q,3,b,3,12,7,5,a,e,7,8,4,8,g,8,d,w,4,5,a,6,y,5,2g,7f,d,q,3,1b,j,b,7,5,d,n,m,t,d,9,1j,5,3,5,1v,79,g,k,6,b,3,z,a,b,7,5,4,8,a,t,j,t,7,5,d,3,1g,5,9,5,1s,76,s,8,4,6,8,3,8,4,e,4,5,p,h,m,5,7,5,p,w,4,5,d,3,1j,c,1y,70,v,8,9,5,6,w,g,n,1d,q,7,5,7,e,4,3,3v,6x,11,9,5,6,g,1z,m,z,7,8,a,b,3,b,3s,6r,11,9,5,6,d,22,j,z,a,5,m,3,5,7,5,3s,6o,d,5,1g,25,j,z,7,5,4,5,4,5,a,3,5,d,8,3m,6l,d,5,1g,2k,4,z,7,5,d,5,7,6,j,5,3m,6i,d,5,j,8,s,3k,7,5,m,c,44,6f,d,h,4,8,v,1z,4,1k,y,8,4,3,7,5,11,5,2s,6c,m,5,4,8,j,5,d,3k,s,b,7,3,7,5,11,5,2s,5,69,m,5,14,1k,a,k,4,1b,a,5,v,3,7,5,a,5,p,5,2v,6c,v,8,p,1n,a,h,4,1b,a,5,s,6,7,5,a,5,p,5,2v,5,30,b,30,s,8,s,1b,4,5,1a,w,d,5,p,6,a,5,d,5,j,8,4,8,2m,5,x,5,i,8,i,5,o,h,30,p,5,s,1e,v,8,j,t,g,8,g,6,d,5,17,6,2m,5,l,8,6,5,f,b,9,5,x,h,30,a,5,17,1h,4,8,s,8,a,t,m,5,d,3,j,5,14,6,1j,5,s,6,7,3,4,c,4,8,4,3,8,c,4,8,9,5,4,r,k,9,5,2o,4,5,7,b,y,1b,14,e,4,w,m,5,d,3,a,e,7,5,v,6,1a,5,j,5,1a,5,19,8,u,k,3,5,2x,4,5,7,b,s,25,7,k,4,z,j,h,3,h,d,5,g,3,3j,5,4,19,b,c,5,3,5,9,7,b,i,5,2l,1a,2t,7,z,j,b,7,5,7,b,s,6,3p,1r,b,6,5,6,4,r,5,2l,5,g,5,p,2t,a,w,y,3,7,e,d,5,41,8,4,1l,e,3u,8,d,h,a,2w,a,t,11,3,4,b,4,8,s,5,g,5,m,5,27,5,4,5,7,1l,e,f,5,3c,8,p,3b,7,w,v,6,4,8,a,8,11,c,4,e,6,7,10,1d,f,8,16,8,43,11,35,4,t,s,9,p,5,p,l,8,1l,7,5,9,7,e,4,5,7,i,5,u,4,5,9,5,3,b,3i,5,1a,32,7,q,s,9,1d,l,4,5,1o,d,6,a,8,4,5,7,1l,5,1c,5,7,2i,5,1g,2q,6,a,5,4,k,a,5,a,f,7,5,17,c,7,8,o,8,1f,p,x,b,l,8,c,1a,29,8,1d,2q,3,d,5,4,k,7,5,f,11,5,14,b,i,h,2o,5,3,5,6,5,13,5,p,5,g,5,29,5,1g,2n,3,j,k,4,5,9,1d,n,g,8,l,n,46,4,5,7,5,g,8,a,8,29,1g,2n,j,n,4,5,3,2a,b,7,l,n,46,m,8,7,8,4,b,26,1j,1h,j,z,a,n,7,3,2p,l,n,f,a,23,5,9,5,r,5,g,5,g,5,d,5,4,5,26,1g,1e,v,w,7,n,4,6,2s,l,h,f,g,1r,e,9,5,u,5,4,3,m,5,4,5,d,5,26,1v,b,4,q,1y,k,4,6,2v,i,8,3,4,i,g,1l,k,1r,s,8,26,8,1s,8,7,n,21,h,4,6,2y,16,j,1i,k,10,h,i,m,2f,g,5,1s,n,27,b,4,6,a,w,21,f,4,i,j,1i,k,x,t,9,a,l,5,23,2g,5,v,3,4,5,1g,8,7,6,5,7,8,d,e,g,5,m,8,v,c,4,f,m,1i,8,6,8,x,t,r,8,6,5,23,5a,5,6,5,1s,3,1g,6,4,9,p,1o,e,10,h,7,i,8,l,5,20,3d,3,7,5,1m,5,c,8,4a,1r,8,13,h,4,l,5,o,5,20,3d,6,1j,5,4,r,5,44,33,e,l,5,6,4,5,4,c,5,r,12,6,51,19,3y,36,b,3,7,c,5,3,h,9,5,r,12,6,51,1c,3y,20,7,10,5,u,8,4,f,5,r,12,3,3y,f,s,1c,3y,36,5,1i,5,r,15,3s,l,s,1l,3m,3l,8,f,5,6,5,6,5,3,5,r,15,3p,o,v,1o,j,l,1g,39,d,x,8,f,5,6,5,3,4,6,5,r,15,3m,r,s,5,1u,7,13,v,3c,m,1o,5,a,x,15,3m,r,7,c,4,3,5,4,79,p,1l,5,3,4,10,15,3j,u,7,c,4,3,7,10,e,5l,4,9,p,1i,8,16,b,j,e,m,3,4,6,2m,c,8,c,m,19,h,5c,7,c,p,i,5,x,5,19,b,7,8,a,b,j,f,2j,c,e,9,7,1o,k,59,7,c,p,i,5,1f,5,r,b,a,5,7,e,g,c,5,3,2j,9,k,6,s,10,n,5u,d,r,5,1f,5,r,b,d,5,4,e,j,9,4,3,2g,9,n,c,7,9,a,x,t,6r,5,x,4,b,4,8,r,n,7,b,3,3d,9,q,r,7,r,18,6i,8,o,5,6,8,6,8,r,k,4,5,4,b,3,3a,9,t,9,a,9,4,r,1e,50,7,1c,8,3,5,f,5,6,8,6,5,u,n,7,b,6,37,9,t,9,a,9,4,o,1k,6f,8,l,5,i,5,u,12,6,5,34,6,12,9,4,9,4,o,1k,6i,8,i,8,9,8,x,12,c,2y,c,z,7,3,4,9,4,r,1e,6l,8,l,k,x,h,7,h,c,2y,i,14,6,a,u,12,6u,5,3,4,1x,e,a,e,i,5,2p,i,1j,x,q,8c,8,r,e,d,8,l,p,5,a,3,1p,f,11,3,4,1f,k,8i,4,u,e,7,b,l,8,v,3,1s,c,y,5,3,a,1c,e,3o,k,i,8,46,e,6,b,9,b,l,8,2s,6,11,5,9,7,53,w,f,5,2i,5,1u,5,6,b,9,b,l,b,4j,4u,12,6,e,33,4,9,7,10,b,9,b,o,b,a,6,41,4u,12,3,k,39,4,8,c,e,f,4,19,e,7,6,7,8,3p,4r,15,3,k,2f,5,o,4,8,l,8,20,4d,4u,15,6,h,69,4a,4x,z,9,e,10,g,1l,e,30,3g,3,j,8,4,o,4,1c,8,10,4,1u,e,r,5,l,5,c,m,1l,8,39,3a,3,p,r,5,o,5,c,b,4,1f,4,1f,5,1f,5,6,8,9,5,m,5,3,b,c,b,3r,5,i,2v,9,p,i,4,9,7,b,7,f,4,c,n,3,7,f,a,1i,5,1x,b,d,8,4o,5,l,2s,6,j,f,5,73,q,49,5,13,2p,6,s,2l,e,1i,5,u,5,1x,j,5,5f,2s,6,s,l,4,1u,g,x,4,f,5,4,2x,4,e,f,5,l,b,3l,5,f,24,6,m,6,s,1o,4,u,7,1l,5,4,o,b,1c,5,1c,b,9,8,9,8,3i,5,9,2a,6,m,6,s,4i,4,c,w,6,5,3,5,9,b,19,5,4o,8,9,2a,6,m,6,v,4r,15,6r,8,6,2d,6,m,6,s,4u,1b,2r,d,36,4,l,2d,9,j,6,p,4x,1k,2i,d,36,4,l,2a,c,j,6,s,4u,1n,2i,4,3,4,36,5,o,27,c,g,9,g,8,a,4r,1n,19,1a,6,g,2o,4,3,5,r,24,c,g,f,n,4u,1n,16,1d,6,14,3f,1p,c,g,f,n,4x,1k,13,1g,6,14,2i,5,19,1a,c,g,f,n,53,1b,16,2p,2i,5,1c,14,i,d,f,k,5i,t,1c,2p,20,4,1x,11,1c,h,7l,1v,6,4,3,j,20,4,1x,11,1c,e,7o,2p,43,y,1f,8,7u,m,3,a,9,j,3,d,3,g,46,s,9i,m,6,4,f,d,6,d,3,g,4c,g,1u,8,2c,d,4x,27,3,g,2i,t,9,a,59,j,4x,2j,2l,b,4,8,7,8,6,a,56,5,j,5,4u,1v,3,a,3,a,2i,4,b,j,8,d,1l,4,3i,5,j,5,4u,2a,3,4,2l,4,b,g,8,4,3,a,1o,4,6,4,u,5,29,5,j,5,50,2d,2f,7,8,j,b,5i,5,j,5,53,g,i,p,f,a,2f,v,e,a,2o,5,2f,8,g,5,59,7,o,m,f,a,2f,14,5,a,59,8,d,53,g,4c,1g,5f,7,a0,1g,f0';   /* coarse land/sea/mountain outline of Hoenn (4x4-tile blocks, run-length coded: run*3+class in base 36; 0 sea, 1 land, 2 mountain), traced from a fan-made region map; used only to decide what scenery fills the gaps */
 var FILLW = 204, FILLB = 4, FILLC = null;
@@ -86,11 +86,12 @@ function warpsOf(g, n){
 }
 function worldWarps(){
   if (G.warps) return G.warps; var out = [];
-  PLACE.forEach(function(pl){ warpsOf(0, pl[0]).forEach(function(w){ if (w.ok) out.push({x: pl[1] + MX + w.x + 0.5, y: pl[2] + MY + w.y + 0.5, g: w.g, n: w.n, id: w.id}); }); });
+  PLACE.forEach(function(pl){ warpsOf(pl[5] || 0, pl[0]).forEach(function(w){ if (w.ok) out.push({x: pl[1] + MX + w.x + 0.5, y: pl[2] + MY + w.y + 0.5, g: w.g, n: w.n, id: w.id}); }); });
   out.push({x: 611, y: 192, g: 0, n: 7, id: 0});   /* Sootopolis City has no place on the overworld: its entrance is the dark crater of Route 126 */
   return G.warps = out;
 }
-function isWorld(g, n){ if (g !== 0) return false; for (var k = 0; k < PLACE.length; k++) if (PLACE[k][0] === n) return true; return false; }
+function plHdr(pl){ return pl[5] ? mapHeaderG(pl[5], pl[0]) : mapHeader(pl[0]); }
+function isWorld(g, n){ for (var k = 0; k < PLACE.length; k++) if (PLACE[k][0] === n && (PLACE[k][5] || 0) === g) return true; return false; }
 var CC = {};
 /* a building or cave with several rooms: every room reachable from this one without going outdoors, laid out side by side; doors that join two rooms get the same letter */
 function compositeOf(g, n){
@@ -159,7 +160,7 @@ function build(done){
   var code = String.fromCharCode(G.rom[0xAC], G.rom[0xAD], G.rom[0xAE], G.rom[0xAF]);
   if (code !== 'BPEE'){ G.err = 'The map is made for Pokémon Emerald.'; return done(); }
   try{
-    for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(mapHeader(PLACE[k][0])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
+    for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(plHdr(PLACE[k])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
   }catch(e){ G.err = 'This game file has different maps than the usual Emerald, so the map is not available.'; return done(); }
   G.cells = new Int32Array(WW * WH).fill(-1); G.atlas = new Uint8ClampedArray(1024 * 2048 * 4); G.n = 0; G.byId = {}; TS = {};
   var i = 0, pass = 0, LASTP = 3, F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
@@ -168,7 +169,7 @@ function build(done){
     while (pass < LASTP && Date.now() - t0 < 12){
       if (pass === 2){   /* the gaps between places: continue the scenery of the nearest place (its border tiles) */
         if (!F) F = PLACE.map(function(pl2){
-          var L3 = layoutOf(mapHeader(pl2[0])), bl3 = [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L3.border + 2 * q, true) & 0x3FF; }), sr = 0, sg = 0, sb = 0;
+          var L3 = layoutOf(plHdr(pl2)), bl3 = [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L3.border + 2 * q, true) & 0x3FF; }), sr = 0, sg = 0, sb = 0;
           bl3.forEach(function(m){ var ci = cellFor(L3.t1, L3.t2, m), ox = (ci & 63) * 16, oy = (ci >> 6) * 16; for (var yy = 0; yy < 16; yy++) for (var xx = 0; xx < 16; xx++){ var o = ((oy + yy) * 1024 + ox + xx) * 4; sr += G.atlas[o]; sg += G.atlas[o + 1]; sb += G.atlas[o + 2]; } });
           var cl = (sb > sr + 40 * 1024 && sb > sg + 40 * 1024) ? 0 : (sr > sg - 5 * 1024 ? 2 : 1);   /* what the border looks like: sea, land or mountain */
           return {x0: pl2[1] + MX, y0: pl2[2] + MY, x1: pl2[1] + MX + L3.w, y1: pl2[2] + MY + L3.h, t1: L3.t1, t2: L3.t2, bl: bl3, cl: cl};
@@ -184,8 +185,9 @@ function build(done){
         continue;
       }
       if (i >= PLACE.length){ pass++; i = 0; continue; }
-      var pl = PLACE[i++], L2 = layoutOf(mapHeader(pl[0])), ax = pl[1] + MX, ay = pl[2] + MY;
+      var pl = PLACE[i++], L2 = layoutOf(plHdr(pl)), ax = pl[1] + MX, ay = pl[2] + MY;
       if (pass === 0){
+        if (pl[5]) continue;   /* the picture shows through around these */
         var bl = [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L2.border + 2 * q, true) & 0x3FF; });
         for (var ty = -MY; ty < L2.h + MY; ty++) for (var tx = -MX; tx < L2.w + MX; tx++){
           if (tx >= 0 && tx < L2.w && ty >= 0 && ty < L2.h) continue;
@@ -260,7 +262,7 @@ function readPos(m){
   setPos(g, n, x, y);
 }
 function setPos(g, n, x, y){
-  var pl = null; if (g === 0) for (var k = 0; k < PLACE.length; k++) if (PLACE[k][0] === n) pl = PLACE[k];
+  var pl = null; for (var k = 0; k < PLACE.length; k++) if (PLACE[k][0] === n && (PLACE[k][5] || 0) === g) pl = PLACE[k];
   if (pl){ G.last = {x: pl[1] + MX + x + 0.5, y: pl[2] + MY + y + 0.5}; G.indoors = false; }
   else G.indoors = true;
   G.pos = {g: g, n: n, x: x, y: y}; dirty = true;
@@ -313,7 +315,7 @@ function drawView(cv, cx, cy, s, tappable){
     if (G.flash && Date.now() - G.flash.t < 1500){ var fr = Math.max(10 * d0, Math.min(s * 0.9, 22 * d0)); c.lineWidth = 3 * d0; c.strokeStyle = '#ff2d95'; c.beginPath(); c.arc((G.flash.x - sx) * s, (G.flash.y - sy) * s, fr, 0, 6.2832); c.stroke(); }
     return;
   }
-  if (G.fan){ c.imageSmoothingEnabled = s < FAN_S * 3; var k = s / FAN_S; c.drawImage(G.fan, 0, 0, G.fan.width, G.fan.height, (FAN_OX / FAN_S - sx) * s, (FAN_OY / FAN_S - sy) * s, G.fan.width * k, G.fan.height * k); }
+  if (G.fan){ c.imageSmoothingEnabled = s < FAN_S * 3; var k = s / FAN_S; c.drawImage(G.fan, 0, 0, G.fan.width, G.fan.height, (-FAN_OX / FAN_S - sx) * s, (-FAN_OY / FAN_S - sy) * s, G.fan.width * k, G.fan.height * k); }
   if (s < 5){ if (!G.fan){ c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); } }
   else {
     c.imageSmoothingEnabled = false;
@@ -374,9 +376,9 @@ function goWarp(w){
     renderBig(); setTimeout(renderBig, 1600); return;
   }
   var from = snap();
-  if (w.g === 0 && isWorld(w.g, w.n)){   /* out to the outdoor map */
-    var pl = null; PLACE.forEach(function(p){ if (p[0] === w.n) pl = p; });
-    var dw = warpsOf(0, w.n)[w.id], tx = dw ? dw.x : pl[3] / 2, ty = dw ? dw.y : pl[4] / 2;
+  if (isWorld(w.g, w.n)){   /* out to the outdoor map */
+    var pl = null; PLACE.forEach(function(p){ if (p[0] === w.n && (p[5] || 0) === w.g) pl = p; });
+    var dw = warpsOf(w.g, w.n)[w.id], tx = dw ? dw.x : pl[3] / 2, ty = dw ? dw.y : pl[4] / 2;
     G.stack.push(from); G.room = null; view.cx = pl[1] + MX + tx + 0.5; view.cy = pl[2] + MY + ty + 1.5; view.s = Math.max(view.s, 6); syncBack(); renderBig(); return;
   }
   var R = compositeOf(w.g, w.n); if (!R) return;
