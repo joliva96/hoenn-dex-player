@@ -9,7 +9,8 @@ var WW = 816, WH = 395, MX = 8, MY = 6;      // world size in tiles including th
 var GROUPS = 0x486578, SB1PTR = 0x5D8C;  // table of map groups in the game file; where the game keeps the pointer to its player data
 var POSX = 0;                         // number added to the stored x/y to get the map tile
 
-var G = {rom: null, dv: null, ready: false, building: false, err: '', cells: null, atlas: null, atlasCv: null, over: null, n: 0, byId: {}, pos: null, last: null, indoors: false};
+var G = {rom: null, dv: null, ready: false, building: false, err: '', cells: null, atlas: null, atlasCv: null, over: null, n: 0, byId: {}, pos: null, last: null, indoors: false, room: null, stack: [], warps: null, pk: ''};
+var MR = 3, RC = {};   // border (in tiles) drawn around a room; cache of drawn rooms
 
 /* ---------- reading the game file ---------- */
 function u32(o){ return G.dv.getUint32(o, true); }
@@ -35,8 +36,9 @@ function tileset(o){
   return TS[o] = {tiles: t, pals: pals, mt: mt};
 }
 /* one 16x16 block of scenery, written into the picture sheet at cell `idx` */
-function paintMetatile(t1o, t2o, mid, idx){
-  var t1 = tileset(t1o), t2 = tileset(t2o), ts = mid < 512 ? t1 : t2, base = ts.mt + (mid < 512 ? mid : mid - 512) * 16, px = G.atlas, W = 1024, ox = (idx & 63) * 16, oy = (idx >> 6) * 16;
+function paintMetatile(t1o, t2o, mid, idx){ paintInto(G.atlas, 1024, (idx & 63) * 16, (idx >> 6) * 16, t1o, t2o, mid); }
+function paintInto(px, W, ox, oy, t1o, t2o, mid){
+  var t1 = tileset(t1o), t2 = tileset(t2o), ts = mid < 512 ? t1 : t2, base = ts.mt + (mid < 512 ? mid : mid - 512) * 16;
   for (var layer = 0; layer < 2; layer++) for (var q = 0; q < 4; q++){
     var e = G.dv.getUint16(base + (layer * 4 + q) * 2, true), ti = e & 0x3FF, hf = (e >> 10) & 1, vf = (e >> 11) & 1, pl = e >> 12;
     var tdata = ti < 512 ? t1.tiles : t2.tiles, tix = ti < 512 ? ti : ti - 512, pal = (pl < 6 ? t1 : t2).pals[pl], qx = ox + (q & 1) * 8, qy = oy + (q >> 1) * 8;
@@ -56,6 +58,45 @@ function cellFor(t1o, t2o, mid){
 }
 function layoutOf(hoff){ var lo = a2o(u32(hoff)); return {w: u32(lo), h: u32(lo + 4), border: a2o(u32(lo + 8)), map: a2o(u32(lo + 12)), t1: a2o(u32(lo + 16)), t2: a2o(u32(lo + 20))}; }
 function mapHeader(i){ var g0 = a2o(u32(GROUPS)); return a2o(u32(g0 + 4 * i)); }
+function romPtr(p){ return p >= 0x08000000 && p < 0x08000000 + G.rom.length; }
+function mapHeaderG(g, n){
+  if (g > 60 || n > 250) return -1;
+  var gp = u32(GROUPS + 4 * g); if (!romPtr(gp)) return -1;
+  var hp = u32(a2o(gp) + 4 * n); if (!romPtr(hp)) return -1;
+  var ho = a2o(hp), lp = u32(ho); if (!romPtr(lp)) return -1;
+  var lo = a2o(lp), w = u32(lo), h = u32(lo + 4); if (w < 1 || h < 1 || w > 255 || h > 255) return -1;
+  if (!romPtr(u32(lo + 12)) || !romPtr(u32(lo + 16)) || !romPtr(u32(lo + 20)) || !romPtr(u32(lo + 8))) return -1;
+  return ho;
+}
+/* doors, stairs and cave mouths of a map: where each leads (map group, map number, and which exit of that map you arrive at) */
+function warpsOf(g, n){
+  var ho = mapHeaderG(g, n), out = []; if (ho < 0) return out;
+  var ep = u32(ho + 4); if (!romPtr(ep)) return out;
+  var eo = a2o(ep), cnt = G.rom[eo + 1], wp = u32(eo + 8); if (!cnt || !romPtr(wp)) return out;
+  for (var i = 0; i < cnt; i++){
+    var o = a2o(wp) + i * 8, mn = G.rom[o + 6], mg = G.rom[o + 7];
+    out.push({x: G.dv.getInt16(o, true), y: G.dv.getInt16(o + 2, true), id: G.rom[o + 5], g: mg, n: mn, ok: mg < 60 && mn < 250 && mapHeaderG(mg, mn) >= 0});
+  }
+  return out;
+}
+function worldWarps(){
+  if (G.warps) return G.warps; var out = [];
+  PLACE.forEach(function(pl){ warpsOf(0, pl[0]).forEach(function(w){ if (w.ok) out.push({x: pl[1] + MX + w.x + 0.5, y: pl[2] + MY + w.y + 0.5, g: w.g, n: w.n, id: w.id}); }); });
+  return G.warps = out;
+}
+/* a room (building, cave, any map) drawn once at full size from the game file */
+function roomOf(g, n){
+  var key = g + ':' + n; if (RC[key]) return RC[key];
+  var ho = mapHeaderG(g, n); if (ho < 0) return null;
+  var L = layoutOf(ho), W = (L.w + 2 * MR) * 16, H = (L.h + 2 * MR) * 16, px = new Uint8ClampedArray(W * H * 4);
+  var bl = [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L.border + 2 * q, true) & 0x3FF; });
+  for (var ty = -MR; ty < L.h + MR; ty++) for (var tx = -MR; tx < L.w + MR; tx++){
+    var mid = (tx >= 0 && tx < L.w && ty >= 0 && ty < L.h) ? G.dv.getUint16(L.map + (ty * L.w + tx) * 2, true) & 0x3FF : bl[(tx & 1) + (ty & 1) * 2];
+    paintInto(px, W, (tx + MR) * 16, (ty + MR) * 16, L.t1, L.t2, mid);
+  }
+  var cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').putImageData(new ImageData(px, W, H), 0, 0);
+  return RC[key] = {g: g, n: n, w: L.w, h: L.h, cv: cv, warps: warpsOf(g, n).filter(function(w){ return w.ok; })};
+}
 
 /* ---------- building the world (in small slices so the game is not held up) ---------- */
 function build(done){
@@ -132,13 +173,41 @@ function setPos(g, n, x, y){
   if (pl){ G.last = {x: pl[1] + MX + x + 0.5, y: pl[2] + MY + y + 0.5}; G.indoors = false; }
   else G.indoors = true;
   G.pos = {g: g, n: n, x: x, y: y}; dirty = true;
+  var pk = g + ':' + n;
+  if (pk !== G.pk){   /* the trainer moved to a different map: the view follows */
+    G.pk = pk; G.stack = [];
+    try{ if (G.indoors && G.ready){ var R = roomOf(g, n); G.room = R; if (R && !$('map-view').hidden) fitRoom(R, x, y); } else { G.room = null; if (!$('map-view').hidden && G.last){ view.cx = G.last.x; view.cy = G.last.y; } } }catch(e){ G.room = null; }
+    syncBack();
+  }
+  if (!$('map-view').hidden) renderBig();
 }
 
 /* ---------- drawing ---------- */
-function drawView(cv, cx, cy, s){
+function dot(c, px, py, r, col, d){
+  c.lineWidth = 3 * d; c.strokeStyle = '#fff'; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
+  c.lineWidth = 2 * d; c.strokeStyle = col; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
+  c.fillStyle = col; c.beginPath(); c.arc(px, py, Math.max(2.5 * d, r * 0.28), 0, 6.2832); c.fill();
+}
+function marks(c, list, sx, sy, s, w, h, d){   /* tappable doors and exits */
+  var r = Math.max(4 * d, Math.min(s * 0.38, 9 * d));
+  for (var i = 0; i < list.length; i++){
+    var px = (list[i].x - sx) * s, py = (list[i].y - sy) * s; if (px < -r || py < -r || px > w + r || py > h + r) continue;
+    c.beginPath(); c.moveTo(px, py - r); c.lineTo(px + r, py); c.lineTo(px, py + r); c.lineTo(px - r, py); c.closePath();
+    c.fillStyle = '#19c3ff'; c.fill(); c.lineWidth = 1.5 * d; c.strokeStyle = '#fff'; c.stroke();
+  }
+}
+function roomList(R){ return R.warps.map(function(w){ return {x: w.x + 0.5, y: w.y + 0.5, g: w.g, n: w.n, id: w.id}; }); }
+function drawView(cv, cx, cy, s, tappable){
   var c = cv.getContext('2d'), w = cv.width, h = cv.height; c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
   if (!G.ready) return;
-  var sx = cx - w / 2 / s, sy = cy - h / 2 / s;
+  var sx = cx - w / 2 / s, sy = cy - h / 2 / s, d0 = window.devicePixelRatio || 1;
+  if (G.room){
+    var R = G.room; c.imageSmoothingEnabled = false;
+    c.drawImage(R.cv, (sx + MR) * 16, (sy + MR) * 16, w / s * 16, h / s * 16, 0, 0, w, h);
+    if (tappable) marks(c, roomList(R), sx, sy, s, w, h, d0);
+    if (G.pos && G.pos.g === R.g && G.pos.n === R.n){ var qx = (G.pos.x + 0.5 - sx) * s, qy = (G.pos.y + 0.5 - sy) * s; dot(c, qx, qy, Math.max(7 * d0, Math.min(s * 0.7, 16 * d0)), '#ffb020', d0); }
+    return;
+  }
   if (s < 5){ c.imageSmoothingEnabled = true; c.drawImage(G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, 0, 0, w, h); }
   else {
     c.imageSmoothingEnabled = false;
@@ -151,11 +220,10 @@ function drawView(cv, cx, cy, s){
       }
     }
   }
+  if (tappable && s >= 3) marks(c, worldWarps(), sx, sy, s, w, h, d0);
   if (G.last){
     var px = (G.last.x - sx) * s, py = (G.last.y - sy) * s, d = window.devicePixelRatio || 1, r = Math.max(7 * d, Math.min(s * 0.7, 16 * d));
-    c.lineWidth = 3 * d; c.strokeStyle = '#fff'; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
-    c.lineWidth = 2 * d; c.strokeStyle = G.indoors ? '#ffb020' : '#ff3b30'; c.beginPath(); c.arc(px, py, r, 0, 6.2832); c.stroke();
-    c.fillStyle = G.indoors ? '#ffb020' : '#ff3b30'; c.beginPath(); c.arc(px, py, Math.max(2.5 * d, r * 0.28), 0, 6.2832); c.fill();
+    dot(c, px, py, r, G.indoors ? '#ffb020' : '#ff3b30', d);
   }
 }
 function sizeCanvas(cv){
@@ -168,33 +236,76 @@ function miniVisible(){ var c = $('emu-card'); return c && c.dataset.view === 'm
 function visible(){ return miniVisible() || !$('map-view').hidden; }
 function renderMini(){
   if (!miniVisible() || !G.ready) return; var re = sizeCanvas(mini); if (!re && !dirty) return; dirty = false;
-  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300}; drawView(mini, c.x, c.y, Math.round((DESKM.matches ? 12 : 8) * d));
+  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300};
+  if (G.room){ var R = G.room, here = G.pos && G.pos.g === R.g && G.pos.n === R.n; drawView(mini, here ? G.pos.x + 0.5 : R.w / 2, here ? G.pos.y + 0.5 : R.h / 2, Math.round((DESKM.matches ? 14 : 10) * d)); return; }
+  drawView(mini, c.x, c.y, Math.round((DESKM.matches ? 12 : 8) * d));
 }
 setInterval(function(){ if (!G.ready && !G.building && !G.fatal && miniVisible() && A.st.rom && A.st.rom.buf) ensure(function(){ dirty = true; }); renderMini(); }, 300);
 setInterval(poll, 2000);
 
 /* ---------- the full-screen viewer: drag to move, pinch to zoom ---------- */
-var big = $('map-big'), view = {cx: 0, cy: 0, s: 2}, vpts = {}, vpinch = null, vdrag = null, bigResume = false;
-function renderBig(){ if ($('map-view').hidden || !G.ready) return; sizeCanvas(big); drawView(big, view.cx, view.cy, view.s * (window.devicePixelRatio || 1)); }
+var tapInfo = null, big = $('map-big'), view = {cx: 0, cy: 0, s: 2}, vpts = {}, vpinch = null, vdrag = null, bigResume = false;
+function renderBig(){ if ($('map-view').hidden || !G.ready) return; sizeCanvas(big); drawView(big, view.cx, view.cy, view.s * (window.devicePixelRatio || 1), true); }
 function fitView(){ var cw = big.clientWidth || 360, ch = big.clientHeight || 600; view.cx = WW / 2; view.cy = WH / 2; view.s = Math.min(cw / WW, ch / WH) * 0.98; }
-function meView(){ if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = Math.max(view.s, 4); } else fitView(); }
+function fitRoom(R, x, y){
+  var cw = big.clientWidth || 360, ch = big.clientHeight || 600;
+  view.s = Math.max(6, Math.min(cw / (R.w + 2), ch / (R.h + 2), 40)); view.cx = x === undefined ? R.w / 2 : x + 0.5; view.cy = y === undefined ? R.h / 2 : y + 0.5;
+}
+function meView(){
+  if (G.pos && G.indoors){ var R = roomOf(G.pos.g, G.pos.n); if (R){ G.room = R; G.stack = []; fitRoom(R, G.pos.x, G.pos.y); syncBack(); return; } }
+  if (G.room){ G.room = null; G.stack = []; syncBack(); }
+  if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = Math.max(view.s, 4); } else fitView();
+}
+/* going through a door: remember where we were so Back can return */
+function snap(){ return {room: G.room, cx: view.cx, cy: view.cy, s: view.s}; }
+function goWarp(w){
+  var from = snap();
+  if (w.g === 0){   /* out to the outdoor map */
+    var pl = null; PLACE.forEach(function(p){ if (p[0] === w.n) pl = p; });
+    if (pl){
+      var dw = warpsOf(0, w.n)[w.id], tx = dw ? dw.x : pl[3] / 2, ty = dw ? dw.y : pl[4] / 2;
+      G.stack.push(from); G.room = null; view.cx = pl[1] + MX + tx + 0.5; view.cy = pl[2] + MY + ty + 1.5; view.s = Math.max(view.s, 6); syncBack(); renderBig(); return;
+    }
+  }
+  var R = roomOf(w.g, w.n); if (!R) return;
+  G.stack.push(from); G.room = R; fitRoom(R); syncBack(); renderBig();
+}
+function goBack(){
+  var p = G.stack.pop(); if (!p) return;
+  G.room = p.room; view.cx = p.cx; view.cy = p.cy; view.s = p.s; syncBack(); renderBig();
+}
+function syncBack(){ var b = $('map-back'); if (b) b.hidden = !G.stack.length; dirty = true; try{ info(); }catch(e){} }
+function tapAt(clientX, clientY){
+  var rect = big.getBoundingClientRect(), d = window.devicePixelRatio || 1, s = view.s;
+  var tx = view.cx + (clientX - rect.left - rect.width / 2) / s, ty = view.cy + (clientY - rect.top - rect.height / 2) / s;
+  var list = G.room ? roomList(G.room) : (s >= 3 ? worldWarps() : []), best = null, bd = Math.max(0.8, 18 / s);
+  for (var i = 0; i < list.length; i++){ var dd = Math.hypot(list[i].x - tx, list[i].y - ty); if (dd < bd){ bd = dd; best = list[i]; } }
+  if (best) goWarp(best);
+}
 function openBig(was){
   if (!$('map-view').hidden) return;
+  G.stack = []; syncBack();
   bigResume = (was === true) || A.st.running; if (A.st.running && A.pause) A.pause();
   $('map-view').hidden = false; $('map-info').textContent = '';
-  ensure(function(){ if (G.err) return; fitView(); if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = 5; } info(); renderBig(); });
+  ensure(function(){ if (G.err) return; fitView(); if (G.last){ view.cx = G.last.x; view.cy = G.last.y; view.s = 5; } if (G.room){ var R0 = G.room; if (G.pos && G.pos.g === R0.g && G.pos.n === R0.n) fitRoom(R0, G.pos.x, G.pos.y); else fitRoom(R0); } info(); renderBig(); });
   poke();
 }
 function poke(){   /* one position read right away when the map opens */
   if (A.st.running && window.hdpVoice && G.ready) poll();
 }
-function info(){ $('map-info').textContent = G.indoors ? 'You are indoors. The marker shows the last spot outside.' : (G.last ? '' : 'Your spot appears once you are playing.'); }
+function info(){
+  var t;
+  if (G.room) t = G.pos && G.pos.g === G.room.g && G.pos.n === G.room.n ? 'You are here. Tap a blue marker to go through it.' : 'Tap a blue marker to go through it. Back returns.';
+  else t = G.indoors ? 'You are indoors. The marker shows the last spot outside.' : (G.last ? (view.s >= 3 ? 'Tap a blue door marker to look inside.' : '') : 'Your spot appears once you are playing.');
+  $('map-info').textContent = t;
+}
 function closeBig(){ $('map-view').hidden = true; if (bigResume && A.play) A.play(); bigResume = false; dirty = true; }
 function ids(){ return Object.keys(vpts); }
 big.addEventListener('pointerdown', function(e){
   vpts[e.pointerId] = [e.clientX, e.clientY]; try{ big.setPointerCapture(e.pointerId); }catch(x){}
   if (ids().length === 2){ var k = ids(); vpinch = {d0: Math.hypot(vpts[k[0]][0] - vpts[k[1]][0], vpts[k[0]][1] - vpts[k[1]][1]) || 1, s0: view.s}; vdrag = null; }
   else vdrag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy};
+  tapInfo = ids().length === 1 ? {x: e.clientX, y: e.clientY, t: Date.now()} : null;
 });
 big.addEventListener('pointermove', function(e){
   if (!vpts[e.pointerId]) return; vpts[e.pointerId] = [e.clientX, e.clientY];
@@ -202,9 +313,14 @@ big.addEventListener('pointermove', function(e){
   else if (vdrag){ view.cx = vdrag.cx - (e.clientX - vdrag.x) / view.s; view.cy = vdrag.cy - (e.clientY - vdrag.y) / view.s; renderBig(); }
 });
 function vend(e){ delete vpts[e.pointerId]; if (ids().length < 2) vpinch = null; if (ids().length === 1){ var k = ids()[0]; vdrag = {x: vpts[k][0], y: vpts[k][1], cx: view.cx, cy: view.cy}; } else if (!ids().length) vdrag = null; }
-big.addEventListener('pointerup', vend); big.addEventListener('pointercancel', vend);
+big.addEventListener('pointerup', function(e){
+  var t = tapInfo; tapInfo = null;
+  if (t && ids().length === 1 && Date.now() - t.t < 600 && Math.hypot(e.clientX - t.x, e.clientY - t.y) < 8) tapAt(e.clientX, e.clientY);
+  vend(e);
+}); big.addEventListener('pointercancel', vend);
 big.addEventListener('wheel', function(e){ e.preventDefault(); view.s = Math.max(0.4, Math.min(40, view.s * Math.exp(-e.deltaY * 0.0015))); renderBig(); }, {passive: false});
 $('map-close').addEventListener('click', closeBig);
+$('map-back').addEventListener('click', goBack);
 $('map-me').addEventListener('click', function(){ meView(); renderBig(); });
 $('map-fit').addEventListener('click', function(){ fitView(); renderBig(); });
 window.addEventListener('resize', function(){ dirty = true; renderBig(); });
