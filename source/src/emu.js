@@ -548,31 +548,48 @@ $('mn-zoom').addEventListener('click', function(){
 window.addEventListener('resize', function(){ fitScreen(); fitCard(); }); window.addEventListener('orientationchange', fitScreen);
 
 /* ---------- keyboard and game controller (computer) ---------- */
-var KB = {ArrowUp:'Up', ArrowDown:'Down', ArrowLeft:'Left', ArrowRight:'Right', x:'A', X:'A', z:'B', Z:'B', a:'L', A:'L', s:'R', S:'R', Enter:'Start', Backspace:'Select', Shift:'Select'};
+/* physical keys (so it works on any keyboard layout):  arrows or WASD move, Space or X = A, Left Ctrl or Z = B, Q / E = L / R, Enter = Start, Left Shift or Backspace = Select */
+var KB = {ArrowUp:'Up', KeyW:'Up', ArrowDown:'Down', KeyS:'Down', ArrowLeft:'Left', KeyA:'Left', ArrowRight:'Right', KeyD:'Right',
+  Space:'A', KeyX:'A', ControlLeft:'B', KeyZ:'B', KeyQ:'L', KeyE:'R', Enter:'Start', NumpadEnter:'Start', ShiftLeft:'Select', Backspace:'Select'};
 var kheld = {};
-function typing(e){ var t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
+function typing(e){ var t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); }
 function modalOpen(){ return !$('emu-sheet').hidden || ($('map-view') && !$('map-view').hidden); }
 document.addEventListener('keydown', function(e){
-  if (typing(e) || e.ctrlKey || e.metaKey || e.altKey || $('emu').hidden) return;
+  if (typing(e) || e.metaKey || e.altKey) return;
+  var plain = !e.ctrlKey && !e.shiftKey;
+  if (e.code === 'KeyP' && plain && !e.repeat){   /* Pokédex finder <-> game */
+    if (st.view === 'dex') openGame(); else openDex();
+    e.preventDefault(); return;
+  }
+  if ($('emu').hidden) return;
   if (e.key === 'Escape'){
     if ($('map-view') && !$('map-view').hidden){ $('map-close').click(); e.preventDefault(); return; }
     if (!$('emu-sheet').hidden) closeMenu(); else openMenu();
     e.preventDefault(); return;
   }
-  if (e.key === 'f' || e.key === 'F'){ toggleFull(); e.preventDefault(); return; }
-  if ((e.key === 'm' || e.key === 'M') && !e.repeat){
+  if (e.code === 'KeyF' && plain){ if (!e.repeat) toggleFull(); e.preventDefault(); return; }
+  if (e.code === 'KeyM' && plain && !e.repeat){
     if ($('map-view') && !$('map-view').hidden) $('map-close').click(); else if (!modalOpen()) $('mn-map').click();
     e.preventDefault(); return;
   }
-  var b = KB[e.key]; if (!b) return;
+  var b = KB[e.code]; if (!b) return;
   e.preventDefault(); if (e.repeat || modalOpen()) return;
-  if (!st.running){ if (e.key === 'Enter' && !$('sp-go').hidden) $('sp-go').click(); return; }
-  if (!kheld[e.key]){ kheld[e.key] = b; setKey(b, true); }
+  var ae = document.activeElement; if (ae && ae.tagName === 'BUTTON' && ae.blur) ae.blur();   /* so Space / Enter never "click" the last button you used */
+  if (!st.running){ if (e.code === 'Enter' && !$('sp-go').hidden) $('sp-go').click(); return; }
+  if (!kheld[e.code]){ kheld[e.code] = b; setKey(b, true); }
 });
-document.addEventListener('keyup', function(e){ var b = kheld[e.key]; if (b){ delete kheld[e.key]; setKey(b, false); } });
-window.addEventListener('blur', function(){ for (var k in kheld){ setKey(kheld[k], false); delete kheld[k]; } });
+document.addEventListener('keyup', function(e){ var b = kheld[e.code]; if (b){ delete kheld[e.code]; setKey(b, false); } if (KB[e.code] && !typing(e)) e.preventDefault(); });
+window.addEventListener('blur', function(){ for (var k in kheld){ setKey(kheld[k], false); delete kheld[k]; } mouseA(false); });
+/* clicking on the game picture = A (mouse only) */
+var mouseDown = false;
+function mouseA(on){ if (on === mouseDown) return; mouseDown = on; setKey('A', on); }
+document.querySelector('.emu-screen').addEventListener('pointerdown', function(e){ if (e.pointerType === 'mouse' && e.button === 0 && st.running && !modalOpen()) mouseA(true); });
+window.addEventListener('pointerup', function(){ mouseA(false); }); window.addEventListener('pointercancel', function(){ mouseA(false); });
 function toggleFull(){
-  try{ if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(err){}
+  try{
+    if (document.fullscreenElement){ if (navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock(); document.exitFullscreen(); }
+    else document.documentElement.requestFullscreen().then(function(){ try{ if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(); }catch(e){} }, function(){});
+  }catch(err){}
 }
 (function(){   /* game controllers: standard layout (Xbox / PlayStation / Switch Pro). Only checked while one is plugged in. */
   var pads = 0, prev = {}, MAP = {1:'A', 0:'B', 4:'L', 5:'R', 8:'Select', 9:'Start', 12:'Up', 13:'Down', 14:'Left', 15:'Right'};
