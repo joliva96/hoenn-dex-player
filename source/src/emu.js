@@ -554,7 +554,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel(); $('mn-zoom').hidden = true;
   if (EJS) ['mn-vol', 'mn-lat', 'mn-rec', 'mn-tune'].forEach(function(id){ var b = $(id); if (b) b.hidden = true; });
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
@@ -700,10 +700,12 @@ document.querySelector('.tabs').addEventListener('click', function(e){
    The screen is sized to whole game pixels. Zoom below 100% shrinks the frame; zoom above 100% magnifies inside the frame
    (cropping the edges, centred on where Emerald keeps the player), always by a whole number of device pixels so it stays sharp. */
 var ZSTEPS = [0.75, 1, 1.5, 2], FOCUS_X = 120, FOCUS_Y = 72;
-function zoomVal(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
+function zoomVal(){ try{ localStorage.removeItem('hdp-zoom'); }catch(e){} return 1; }
+function zoomValOld(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
 st.zoom = zoomVal();
 function zoomLabel(){ var t = $('mn-zoom-t'); if (t) t.textContent = 'Zoom: ' + Math.round(st.zoom * 100) + '%'; }
 function setZoom(z, keep){
+  z = 1;   /* zoom removed: always 100% */
   st.zoom = Math.max(0.5, Math.min(2.6, z));
   if (keep !== false){ try{ localStorage.setItem('hdp-zoom', String(st.zoom)); }catch(e){} }
   fitScreen(); fitCard(); zoomLabel();

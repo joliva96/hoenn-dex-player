@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 28)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 29)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 28</h2>
+    <h2>Menu · build 29</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -2070,7 +2070,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel(); $('mn-zoom').hidden = true;
   if (EJS) ['mn-vol', 'mn-lat', 'mn-rec', 'mn-tune'].forEach(function(id){ var b = $(id); if (b) b.hidden = true; });
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
@@ -2216,10 +2216,12 @@ document.querySelector('.tabs').addEventListener('click', function(e){
    The screen is sized to whole game pixels. Zoom below 100% shrinks the frame; zoom above 100% magnifies inside the frame
    (cropping the edges, centred on where Emerald keeps the player), always by a whole number of device pixels so it stays sharp. */
 var ZSTEPS = [0.75, 1, 1.5, 2], FOCUS_X = 120, FOCUS_Y = 72;
-function zoomVal(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
+function zoomVal(){ try{ localStorage.removeItem('hdp-zoom'); }catch(e){} return 1; }
+function zoomValOld(){ try{ var v = parseFloat(localStorage.getItem('hdp-zoom')); return v >= 0.5 && v <= 2.6 ? v : 1; }catch(e){ return 1; } }
 st.zoom = zoomVal();
 function zoomLabel(){ var t = $('mn-zoom-t'); if (t) t.textContent = 'Zoom: ' + Math.round(st.zoom * 100) + '%'; }
 function setZoom(z, keep){
+  z = 1;   /* zoom removed: always 100% */
   st.zoom = Math.max(0.5, Math.min(2.6, z));
   if (keep !== false){ try{ localStorage.setItem('hdp-zoom', String(st.zoom)); }catch(e){} }
   fitScreen(); fitCard(); zoomLabel();
