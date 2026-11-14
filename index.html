@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 22)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 23)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 22</h2>
+    <h2>Menu · build 23</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -1665,8 +1665,8 @@ function loadEngine(){
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){
       try{ M.toggleInput(false); }catch(e){}
-      /* Beta engine (mGBA-wasm 2.x): let the engine pace the game by the sound itself, like desktop mGBA's "Sync: Audio". */
-      if (window.__BETA){ try{ M.setCoreSettings({audioSync: true, audioBufferSize: 1536}); }catch(e){ st.betaErr = String(e); } }
+      /* Beta engine (mGBA-wasm 2.x). Its own audio sync ran the game far too slowly here, so keep it off and use the app's pacing. */
+      if (window.__BETA){ try{ M.setCoreSettings({audioSync: false}); }catch(e){ st.betaErr = String(e); } }
       st.M = M; return M;
     });
   });
@@ -1911,7 +1911,7 @@ function measureHz(){
    So the app counts game frames against the sound card's own clock. If they disagree by more than a hair it hands the pacing to the engine's timer and keeps nudging that timer
    until game frames and sound match, which also fixes the game running too fast on 120 / 144 / 240 Hz screens. */
 function paceWatch(){
-  if (window.__BETA || st.pace || !st.M) return;
+  if (st.pace || !st.M) return;
   var P = st.pace = {mode: 'screen', acc: 0, v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
     P.n++;
@@ -1949,7 +1949,7 @@ function paceWatch(){
 }
 function audioInfo(){
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
-    return n && c ? (window.__BETA ? 'BETA engine (sound-synced) · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
+    return n && c ? (window.__BETA ? 'BETA engine · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
 }
 
 /* ---------- menu ---------- */
