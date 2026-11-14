@@ -322,19 +322,23 @@ function paceWatch(){
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ P.n++; }}); }catch(e){ st.pace = null; return; }
   /* A fast screen (>= 70 Hz) would run the game far too fast until the first measurement: take over from the first frame. */
   if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
+  /* The sound card's clock only ticks in coarse steps (about 40 ms with this buffer), so a short measurement can be off by several percent and make the speed swing up and down,
+     which is itself audible. So: measure over a long sliding window (8 s), correct gently, and leave the timer alone when it is already close. */
+  P.hist = [];
   setInterval(function(){
     var s2 = st.M && st.M.SDL2, ctx = s2 && s2.audioContext;
-    if (!st.running || !ctx || ctx.state !== 'running'){ P.t0 = null; return; }
-    var now = ctx.currentTime;
-    if (P.t0 === null){ P.t0 = now; P.n0 = P.n; return; }
-    var dt = now - P.t0; if (dt < (P.mode === 'timer' && P.settled ? 3 : 1.5)) return;
-    var rate = (P.n - P.n0) / dt, ratio = rate / GB; P.t0 = now; P.n0 = P.n;
-    if (rate < 10) return;   /* a hiccup (tab in the background, loading): not a measurement */
-    P.ratio = ratio; st.rate = Math.round(rate * 100) / 100; st.hzScreenRate = rate;
+    if (!st.running || !ctx || ctx.state !== 'running'){ P.hist = []; return; }
+    var now = ctx.currentTime; P.hist.push([now, P.n]); if (P.hist.length > 9) P.hist.shift();
+    var h0 = P.hist[0], dt = now - h0[0]; if (dt < 3) return;
+    var rate = (P.n - h0[1]) / dt, ratio = rate / GB;
+    if (rate < 10){ P.hist = []; return; }   /* a hiccup (tab in the background, loading): not a measurement */
+    P.ratio = ratio; st.rate = Math.round(rate * 100) / 100;
     if (P.mode === 'screen'){
-      if (Math.abs(ratio - 1) > 0.0015){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
-    } else if (Math.abs(ratio - 1) > 0.0004){
-      P.settled = Math.abs(ratio - 1) < 0.004; P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1)))); try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
+      if (Math.abs(ratio - 1) > 0.0015){ P.mode = 'timer'; st.limiter = 1; P.hist = []; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
+    } else if (Math.abs(ratio - 1) > 0.003){
+      var g = Math.abs(ratio - 1) > 0.05 ? 1 : 0.4;
+      P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1) * g))); P.hist = [[now, P.n]];
+      try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
     }
     st.tv = P.v;
   }, 1000);
