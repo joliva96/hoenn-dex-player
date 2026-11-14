@@ -204,7 +204,7 @@ function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
-  measureHz(); paceWatch();
+  measureHz(); paceWatch(); applySoft(); setTimeout(applySoft, 800);
   if (st.pace){ st.pace.hist = []; st.pace.v = st.pace.good; }
   st.running = true; hideSplash(); wake();
 }
@@ -306,6 +306,28 @@ $('mn-vol').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-abuf', String((abufIdx() + 1) % 3)); }catch(e){}
   abufLabel(); toast('Audio smoothing: ' + ABN[abufIdx()] + '. It applies the next time you fully close and reopen the app.', 5000);
 });
+/* ---------- sound softening: an optional low-pass filter between the engine and the speakers, to tame hiss and fizz in the high notes. Changes instantly. ---------- */
+var SOFT = [0, 12000, 8000, 5500], SOFTN = ['Off', 'Light', 'Medium', 'Strong'];
+function softIdx(){ try{ var v = +localStorage.getItem('hdp-soft'); return v >= 0 && v < 4 ? v : 0; }catch(e){ return 0; } }
+function softLabel(){ $('mn-soft-t').textContent = 'Sound softening: ' + SOFTN[softIdx()]; }
+function applySoft(){
+  try{
+    var A = st.M && st.M.SDL2 && st.M.SDL2.audio, ctx = st.M.SDL2.audioContext, node = A && A.scriptProcessorNode;
+    if (!node) return;
+    if (!st.lp){ st.lp = ctx.createBiquadFilter(); st.lp.type = 'lowpass'; st.lp.Q.value = 0.707; st.lpNode = null; }
+    var i = softIdx();
+    if (st.lpNode !== node){   /* (re)wire: engine -> filter -> speakers */
+      try{ node.disconnect(); }catch(e){}
+      try{ st.lp.disconnect(); }catch(e){}
+      node.connect(st.lp); st.lp.connect(ctx.destination); st.lpNode = node;
+    }
+    st.lp.frequency.value = i ? SOFT[i] : Math.min(ctx.sampleRate / 2 - 100, 22000);
+  }catch(e){}
+}
+$('mn-soft').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-soft', String((softIdx() + 1) % 4)); }catch(e){}
+  softLabel(); applySoft(); toast('Sound softening: ' + SOFTN[softIdx()], 2500);
+});
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
   function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); var P = st.pace; if (P && P.mode === 'screen' && st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} } } }
@@ -361,7 +383,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); zoomLabel();
+  abufLabel(); softLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
