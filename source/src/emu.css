@@ -137,30 +137,29 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .map-info{text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
 
 .emu-keys{display:none}
-/* ---------- computer layout: any window with a mouse (phones never match: no hover, coarse pointer). Narrow windows stack; wide windows put the Pokédex + map in a column beside the game. ---------- */
+/* ---------- computer layout: any window with a mouse (phones never match: no hover, coarse pointer). The on-screen buttons stay (mouse works on them, and so does the keyboard).
+   Narrow windows use the phone order; wide windows put the Pokédex/map and the buttons in a column beside a big game screen. ---------- */
 @media (hover:hover) and (pointer:fine){
+  :root{--emu-ab:clamp(44px,9dvh,74px);--emu-pad:clamp(92px,19dvh,164px)}
+  .emu-sh .emu-key{height:clamp(34px,6dvh,48px)}
+  .emu-ctl{padding-block:8px 0;gap:clamp(6px,1.6dvh,22px)}
   .emu-screen{max-width:none;width:100%}
-  .emu-fill{min-height:0}
-  .emu-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px 0}
-  .emu-sh,.emu-bot{display:contents}
-  .emu-ctl .emu-key,.emu-mid{display:none}
-  .emu-mic{order:1}.emu-menu{order:2}
-  .emu-keys{display:block;order:3;flex:1 1 280px;margin:0;font-size:.8rem;line-height:1.7;color:var(--emu-dim)}
-  .emu-keys b{color:var(--emu-ink);font-family:var(--mono);font-weight:700;font-size:.78rem;padding:1px 6px;border:1px solid var(--emu-edge);border-radius:6px;background:var(--surface2);white-space:nowrap}
-  .emu-menu,.emu-mic{cursor:pointer}.emu-menu:hover,.emu-mic:hover,.ec-tab:hover,.ec-open:hover,.map-bar button:hover,.emu-item:hover{filter:brightness(1.15)}
+  .emu-keys{display:block;margin:0;font-size:.78rem;line-height:1.7;color:var(--emu-dim)}
+  .emu-keys b{color:var(--emu-ink);font-family:var(--mono);font-weight:700;font-size:.74rem;padding:1px 6px;border:1px solid var(--emu-edge);border-radius:6px;background:var(--surface2);white-space:nowrap}
+  .emu-key,.emu-menu,.emu-mic,.ec-tab,.ec-open,.map-bar button,.emu-item,.emu-dpad{cursor:pointer}
+  .emu-menu:hover,.emu-mic:hover,.ec-tab:hover,.ec-open:hover,.map-bar button:hover,.emu-item:hover{filter:brightness(1.15)}
   .emu-sheet{left:50%;right:auto;bottom:12px;width:min(480px,94vw);max-height:calc(100dvh - 24px);overflow-y:auto;transform:translateX(-50%);border:1px solid var(--emu-edge);border-radius:18px;padding:16px}
   .map-view canvas{cursor:grab}
-  .emu-body{overflow-y:auto;overflow-x:hidden;padding-bottom:12px}
-  .emu-ctl{margin-top:0}
-  .emu-fill{padding-top:12px}
+  .emu-body{overflow-y:auto;overflow-x:hidden;position:relative}
 }
 @media (hover:hover) and (pointer:fine) and (min-width:900px){
-  .emu-body{display:grid;grid-template-columns:minmax(0,1fr) clamp(320px,30vw,460px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"scr side" "ctl side" "gap side";column-gap:20px;align-content:start;overflow:hidden;padding-bottom:14px}
-  .emu-screen{grid-area:scr;margin:12px 0 0;justify-self:start}
-  .emu-fill{grid-area:side;padding:12px 0 0;align-items:stretch}
+  .emu-body{display:grid;grid-template-columns:minmax(0,1fr) clamp(340px,28vw,420px);grid-template-rows:minmax(0,1fr) auto;column-gap:20px;overflow:hidden;padding-bottom:14px}
+  .emu-screen{grid-column:1;grid-row:1 / span 2;align-self:start;justify-self:start;margin:12px 0 0}
+  .emu-fill{grid-column:2;grid-row:1;padding:12px 0 0;align-items:stretch;overflow:hidden}
+  .emu-ctl{grid-column:2;grid-row:2;margin-top:0}
+  .emu-keys{position:absolute;left:var(--gutter-l,16px);bottom:12px;right:calc(clamp(340px,28vw,420px) + 40px)}
   .emu-card{height:100%;align-content:start}
   .emu-card[data-size="off"]{display:grid}
-  .emu-ctl{grid-area:ctl}
   .ec-tabs{display:none}
   .emu-card[data-view="map"]{grid-template-rows:auto auto minmax(0,1fr)}
   .emu-card[data-view="map"] #ec-n{display:block}
@@ -168,5 +167,5 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
   .emu-card[data-view="map"] .ec-open:not(.ec-expand){display:block}
   .emu-card[data-view="map"] .ec-head{justify-content:flex-start}
   .ec-expand{margin-left:auto}.ec-head #ec-n{flex:1}
-  .emu-card[data-view="map"] .ec-map{min-height:300px}
+  .emu-card[data-view="map"] .ec-map{min-height:120px}
 }

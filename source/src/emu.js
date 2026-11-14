@@ -496,8 +496,8 @@ function fitScreen(){
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   if (DESK.matches){   /* computer layout: as large as fits the window, in whole-number steps */
     el.style.width = ''; el.style.maxWidth = 'none';
-    var r0 = el.getBoundingClientRect(), cellW = r0.width, topY = r0.top, ctlH = $('emu-ctl').offsetHeight + 24, below = WIDE.matches ? 0 : 130;
-    avail = Math.min(cellW, Math.max(240, window.innerHeight - topY - ctlH - below) * 1.5);
+    var r0 = el.getBoundingClientRect(), cellW = r0.width, topY = r0.top, ctlH = WIDE.matches ? 52 : $('emu-ctl').offsetHeight + 24, below = WIDE.matches || window.innerHeight < 760 ? 0 : 110;
+    avail = Math.min(cellW, Math.max(160, window.innerHeight - topY - ctlH - below) * 1.5);
   } else avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
   if (DESK.matches && phys >= 720) n = Math.floor(phys / 240);   /* big windows: whole-number sizes so pixels stay sharp */
