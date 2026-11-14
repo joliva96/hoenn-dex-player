@@ -176,8 +176,7 @@ function build(done){
         });
         for (var gx = 0; gx < WW; gx++){
           if (G.cells[fy * WW + gx] >= 0) continue;
-          if (G.fanPx){ if (!G.det) detailMap(); if (G.det[fy * WW + gx]) continue; }   /* detailed picture area (islands, buildings): leave it to the picture */
-          var want = fillClass(gx, fy), bi = -1, bd = 1e12, bi2 = -1, bd2 = 1e12;
+          var want = G.fanPx ? fanClassAt(gx, fy) : fillClass(gx, fy), bi = -1, bd = 1e12, bi2 = -1, bd2 = 1e12;
           for (var fi = 0; fi < F.length; fi++){ var f = F[fi], ddx = gx < f.x0 ? f.x0 - gx : (gx >= f.x1 ? gx - f.x1 + 1 : 0), ddy = fy < f.y0 ? f.y0 - fy : (fy >= f.y1 ? fy - f.y1 + 1 : 0), dd = ddx * ddx + ddy * ddy; if (dd < bd2){ bd2 = dd; bi2 = fi; } if (f.cl === want && dd < bd){ bd = dd; bi = fi; } }
           var fb = F[bi >= 0 ? bi : bi2]; G.cells[fy * WW + gx] = cellFor(fb.t1, fb.t2, fb.bl[((gx - fb.x0) & 1) + ((fy - fb.y0) & 1) * 2]);
         }
@@ -229,6 +228,27 @@ function ensure(cb){
 }
 /* the fan-made reference map (map/hoenn.png) is the scenery behind and around the places drawn from the game; ~1.51 px per tile, found by matching it to the game's own layout */
 var FAN_S = 1.51, FAN_OX = 1.0, FAN_OY = 24.5;
+function fanClassAt(gx, gy){   /* sea / land / mountain of the reference picture at this tile, smoothed over the 3x3 tiles around it */
+  if (!G.fcls){
+    var P = G.fanPx, c = new Uint8Array(WW * WH), x, y;
+    for (y = 0; y < WH; y++) for (x = 0; x < WW; x++){
+      var px = Math.floor(x * FAN_S + FAN_OX + 0.3), py = Math.floor(y * FAN_S + FAN_OY + 0.3), n = [0, 0, 0];
+      for (var yy = py; yy <= py + 1; yy++) for (var xx = px; xx <= px + 1; xx++){
+        if (xx < 0 || yy < 0 || xx >= G.fanW || yy >= G.fanH){ n[0]++; continue; }
+        var o = (yy * G.fanW + xx) * 4, r = P[o], g = P[o + 1], b = P[o + 2];
+        if (b > r + 40 && b > g + 30) n[0]++; else if (r > g - 8 && r > b + 10 && !(g >= r - 5 && r > 150)) n[2]++; else n[1]++;
+      }
+      c[y * WW + x] = n[0] >= n[1] && n[0] >= n[2] ? 0 : (n[2] > n[1] ? 2 : 1);
+    }
+    var d = new Uint8Array(WW * WH);
+    for (y = 0; y < WH; y++) for (x = 0; x < WW; x++){
+      var m = [0, 0, 0]; for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++){ var X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < WW && Y < WH) m[c[Y * WW + X]]++; }
+      d[y * WW + x] = m[c[y * WW + x]] >= 4 ? c[y * WW + x] : (m[0] >= m[1] && m[0] >= m[2] ? 0 : (m[2] > m[1] ? 2 : 1));
+    }
+    G.fcls = d;
+  }
+  return G.fcls[gy * WW + gx];
+}
 function detailMap(){   /* cells where the picture has detail, widened by 4 cells so plain land/sea next to detail stays with the picture too */
   var D = new Uint8Array(WW * WH), E = new Uint8Array(WW * WH), R = 4, x, y, k;
   for (y = 0; y < WH; y++) for (x = 0; x < WW; x++) D[y * WW + x] = fanDetail(x, y) ? 1 : 0;
