@@ -9,7 +9,7 @@ c=re.sub(r'^<meta name="claude:viewport-fit-sides"[^>]*>\s*','',c,count=1)
 assert '<title>' not in c[:200] and 'claude:viewport' not in c[:200]
 n=c.count('<h2>Menu</h2>'); assert n==1,n
 c=c.replace('<h2>Menu</h2>','<h2>Menu · build %s</h2>'%BUILD)
-head='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+head='''<!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hoenn Dex Player (build BUILDNUM)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">

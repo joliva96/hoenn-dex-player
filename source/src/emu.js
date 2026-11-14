@@ -1,6 +1,7 @@
 (function(){
 'use strict';
 var $ = function(id){ return document.getElementById(id); };
+var $n = function(id){ return document.getElementById(id) || document.createElement('button'); };
 var root = document.documentElement;
 var ROMNAME = 'pokemon.gba', SAVNAME = 'pokemon.sav', SAVE_MIN = 131072;
 var st = {M:null, enginePromise:null, rom:null, started:false, running:false, view:'game', resumeAfterMenu:false, wasRunning:false,
@@ -141,13 +142,13 @@ function rateLabel(){ $('mn-rate-t').textContent = EJS ? 'Sound buffer: ' + EBUF
 /* Sound latency: how much safety margin the browser keeps between the page and the headphones. "Safe" asks for a bigger one (the Web Audio "playback" hint). Applies after a full restart. */
 var LATH = ['interactive', 'balanced', 'playback'], LATN = ['Normal', 'Medium', 'Safe'];
 function latIdx(){ try{ var v = +localStorage.getItem('hdp-lat'); return v >= 0 && v < 3 ? v : 0; }catch(e){ return 0; } }
-function latLabel(){ $('mn-lat-t').textContent = 'Sound latency: ' + LATN[latIdx()]; }
+function latLabel(){ $n('mn-lat-t').textContent = 'Sound latency: ' + LATN[latIdx()]; }
 (function(){
   var r = RATES[rateIdx()], li = latIdx(), AC = window.AudioContext; if ((!r && !li) || !AC) return;
   var W = function(o){ var opt = Object.assign({}, o); if (r) opt.sampleRate = r; if (li) opt.latencyHint = LATH[li]; try{ return new AC(opt); }catch(e){ return new AC(o); } };
   W.prototype = AC.prototype; window.AudioContext = W;
 })();
-$('mn-lat').addEventListener('click', function(){
+$n('mn-lat').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-lat', String((latIdx() + 1) % 3)); }catch(e){}
   latLabel(); toast('Sound latency: ' + LATN[latIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
@@ -165,7 +166,7 @@ $('mn-rate').addEventListener('click', function(){
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
 /* ---------- engine option B: EmulatorJS (libretro mGBA, used when the page sets window.__EJS) ---------- */
-var EJS = !!window.__EJS;
+var EJS = true;   /* the EmulatorJS engine is the only engine now */
 var JOY = {B:0, Select:2, Start:3, Up:4, Down:5, Left:6, Right:7, A:8, L:10, R:11};   /* RetroArch pad numbers */
 function gmr(){ return window.EJS_emulator && window.EJS_emulator.gameManager; }
 function ejsCtx(){ try{ return window.EJS_emulator.Module.AL.currentCtx; }catch(e){ return null; } }
@@ -401,8 +402,8 @@ window.addEventListener('blur', releaseAll);
 /* ---------- audio smoothing: how much sound the engine prepares ahead (bigger = fewer gaps, a little more delay) ---------- */
 var ABUF = [1, 2, 4], ABN = ['Small', 'Medium', 'Large'];
 function abufIdx(){ try{ var v = localStorage.getItem('hdp-abuf'); if (v === null) return 1; v = +v; return v >= 0 && v < 3 ? v : 1; }catch(e){ return 1; } }
-function abufLabel(){ $('mn-vol-t').textContent = 'Audio smoothing: ' + ABN[abufIdx()]; }
-$('mn-vol').addEventListener('click', function(){
+function abufLabel(){ $n('mn-vol-t').textContent = 'Audio smoothing: ' + ABN[abufIdx()]; }
+$n('mn-vol').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-abuf', String((abufIdx() + 1) % 3)); }catch(e){}
   abufLabel(); toast('Audio smoothing: ' + ABN[abufIdx()] + '. It applies the next time you fully close and reopen the app.', 5000);
 });
@@ -466,8 +467,8 @@ function recordSound(){
     toast('Saved ' + a2.download + '. Check: loudest ' + peak.toFixed(2) + ', silent blocks ' + zeroBlocks + ' of ' + L.length + ', slowest block ' + Math.round(maxGap) + ' ms (normal ' + Math.round(exp) + ').', 12000);
   }
 }
-$('mn-rec').addEventListener('click', function(){ closeMenu(); recordSound(); });
-$('mn-tune').addEventListener('click', function(){
+$n('mn-rec').addEventListener('click', function(){ closeMenu(); recordSound(); });
+$n('mn-tune').addEventListener('click', function(){
   var P = st.pace; closeMenu();
   if (!P || P.mode !== 'timer' || !st.running){ toast('Start the game first. (Retune only works while the game is running on its timer.)', 4000); return; }
   P.burst = 2; toast('Sound retuned. Listen for a few seconds: if the crunch stopped, tell me.', 4000);
