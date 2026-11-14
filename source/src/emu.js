@@ -155,14 +155,71 @@ function volIdx(){ try{ var v = +localStorage.getItem('hdp-vol'); return v >= 0 
 function volLabel(){ $('mn-vol2-t').textContent = 'Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%'; }
 $('mn-vol2').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-vol', String((volIdx() + 1) % 4)); }catch(e){}
-  volLabel(); applySoft(); toast('Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%', 2000);
+  volLabel(); applySoft(); ejsVol(); toast('Volume: ' + Math.round(VOLS[volIdx()] * 100) + '%', 2000);
 });
 $('mn-rate').addEventListener('click', function(){
   try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
   rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
 });
+/* ---------- engine option B: EmulatorJS (libretro mGBA, used when the page sets window.__EJS) ---------- */
+var EJS = !!window.__EJS;
+var JOY = {B:0, Select:2, Start:3, Up:4, Down:5, Left:6, Right:7, A:8, L:10, R:11};   /* RetroArch pad numbers */
+function gmr(){ return window.EJS_emulator && window.EJS_emulator.gameManager; }
+function ejsCtx(){ try{ return window.EJS_emulator.Module.AL.currentCtx; }catch(e){ return null; } }
+function ejsVol(){ try{ var c = ejsCtx(); if (c && c.sources) for (var k in c.sources){ var s = c.sources[k]; if (s && s.gain) s.gain.gain.value = VOLS[volIdx()]; } }catch(e){} }
+function ejsSave(){
+  try{ var g = gmr(), raw = g && g.getSaveFile(); if (!raw || raw.length < SAVE_MIN) return null; var u = new Uint8Array(raw.length); u.set(raw); return u; }catch(e){ return null; }
+}
+function ejsSnapshot(){   /* the game's memory, from the engine's own save-state bytes (16-byte header, then mGBA's state) */
+  var g = gmr(), s = g.getState(), base = 16;
+  return {ew: s.subarray(base + 0x21000, base + 0x21000 + 0x40000), iw: s.subarray(base + 0x19000, base + 0x19000 + 0x8000)};
+}
+function startGameEJS(){
+  return pickSave().then(function(save){
+    if (st.ejsUp){   /* a second start (restart, new ROM, imported save): simplest and safest is to reload the page and start again */
+      try{ sessionStorage.setItem('hdp-auto', '1'); }catch(e){}
+      setTimeout(function(){ location.reload(); }, 900); return new Promise(function(){});
+    }
+    return new Promise(function(res, rej){
+      var host = document.createElement('div'); host.id = 'ejs-host';
+      host.style.cssText = 'position:fixed;left:-9999px;top:0;width:480px;height:320px;overflow:hidden;pointer-events:none';
+      document.body.appendChild(host);
+      var done = false, to = setTimeout(function(){ if (!done) rej(new Error('The game engine took too long to start.')); }, 60000);
+      window.EJS_player = '#ejs-host'; window.EJS_core = 'gba'; window.EJS_gameName = 'pokemon'; window.EJS_pathtodata = 'ejs/';
+      window.EJS_gameUrl = URL.createObjectURL(new Blob([st.rom.buf])); window.EJS_startOnLoaded = true; window.EJS_DEBUG_XX = true; window.EJS_noAutoFocus = true;
+      window.EJS_disableLocalStorage = true;
+      window.EJS_Buttons = {playPause:false, restart:false, mute:false, settings:false, fullscreen:false, saveState:false, loadState:false, screenRecord:false, gamepad:false, cheat:false, volume:false, saveSavFiles:false, loadSavFiles:false, quickSave:false, quickLoad:false, screenshot:false, cacheManager:false, exitEmulation:false, netplay:false, diskButton:false, contextMenu:false};
+      window.EJS_onGameStart = function(){
+        if (done) return; done = true; clearTimeout(to);
+        try{
+          var g = gmr(), E = window.EJS_emulator;
+          g.toggleMainLoop(0);
+          var cv = E.canvas, old = $('emu-canvas');
+          cv.removeAttribute('class'); cv.id = 'emu-canvas'; cv.setAttribute('aria-label', 'Game screen'); cv.removeAttribute('style');
+          old.parentNode.replaceChild(cv, old);
+          if (save){ g.FS.writeFile(g.getSaveFilePath(), save.b); g.loadSaveFiles(); }
+          st.M = {ejs: true, ejsSnapshot: ejsSnapshot};
+          st.ejsUp = true; st.started = true; st.running = false;
+          var first = ejsSave(); st.sig = first ? crc32(first) : 0;
+          clearInterval(st.savePoll);
+          st.savePoll = setInterval(function(){
+            if (!st.running) return; var u = ejsSave(); if (!u) return;
+            var c = crc32(u); if (c !== st.sig){ st.sig = c; onSaveUpdated(); }
+          }, 3000);
+          st.recent = save && save.r ? save.r.slice(0, 12) : [];
+          if (save) dexFromSave(save.b);
+          if (save && save.remote) toast('Restored your save from your account.', 4000);
+          fitScreen(); res();
+        }catch(e){ rej(e); }
+      };
+      var sc = document.createElement('script'); sc.src = 'ejs/loader.js'; sc.onerror = function(){ rej(new Error('The game engine files did not load.')); };
+      document.body.appendChild(sc);
+    });
+  });
+}
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
+  if (EJS){ st.enginePromise = Promise.resolve(null); return st.enginePromise; }
   window.__abufMul = ABUF[abufIdx()];
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
     return M.FSInit().then(function(){
@@ -185,6 +242,7 @@ function romInfo(buf){
 }
 
 function startGame(){
+  if (EJS) return startGameEJS();
   var M = st.M, P = M.filePaths(), sp = P.savePath + '/' + SAVNAME;
   return pickSave().then(function(save){
     try{ M.quitGame(); }catch(e){}
@@ -216,6 +274,7 @@ function boot(){
 /* ---------- audio, wake lock ---------- */
 var SILENT = null;
 function unlockAudio(){
+  try{ var ec = EJS && ejsCtx(); if (ec && ec.audioCtx && ec.audioCtx.state !== 'running') ec.audioCtx.resume(); }catch(e){}
   try{ var ac = st.M && st.M.SDL2 && st.M.SDL2.audioContext; if (ac && ac.state !== 'running' && ac.resume) ac.resume(); }catch(e){}
   try{ if (navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
   try{
@@ -237,14 +296,17 @@ function wake(){
 function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
+  if (EJS){ try{ gmr().toggleMainLoop(1); }catch(e){} ejsVol(); setTimeout(ejsVol, 500); setTimeout(ejsVol, 2000); }
+  else {
   try{ st.M.resumeGame(); }catch(e){}
   measureHz(); paceWatch(); watchAudioCalls(); applySoft(); setTimeout(applySoft, 800);
   if (st.pace){ st.pace.hist = []; st.pace.v = st.pace.good; }
+  }
   st.running = true; hideSplash(); wake();
 }
 function pause(){
   releaseAll();
-  if (st.running){ try{ st.M.pauseGame(); }catch(e){} st.running = false; }
+  if (st.running){ try{ if (EJS) gmr().toggleMainLoop(0); else st.M.pauseGame(); }catch(e){} st.running = false; }
 }
 function playTap(){ play(); }
 
@@ -264,6 +326,7 @@ function onSaveUpdated(){ clearTimeout(st.saveTimer); st.saveTimer = setTimeout(
 function flushSave(){ if (st.saveTimer){ clearTimeout(st.saveTimer); st.saveTimer = null; captureSave(); } }
 function currentSave(){
   try{
+    if (EJS) return st.started ? ejsSave() : null;
     var raw = st.M && st.started ? st.M.getSave() : null;
     if (!raw || raw.length < SAVE_MIN) return null;
     var u = new Uint8Array(raw.length); u.set(raw); return u;
@@ -317,7 +380,7 @@ function apply(){
 function setKey(n, on){
   if (KEYS[n]) KEYS[n].classList.toggle('on', on);
   if (ARMS[n]) ARMS[n].classList.toggle('on', on);
-  if (st.running && st.M){ try{ on ? st.M.buttonPress(n) : st.M.buttonUnpress(n); }catch(e){} }
+  if (st.running && st.M){ try{ if (EJS) gmr().simulateInput(0, JOY[n], on ? 1 : 0); else on ? st.M.buttonPress(n) : st.M.buttonUnpress(n); }catch(e){} }
 }
 function releaseAll(){ st.pointers = {}; apply(); }
 ctl.addEventListener('pointerdown', function(e){
@@ -422,12 +485,23 @@ function watchAudioCalls(){
   if (typeof f !== 'function') return;
   node.onaudioprocess = function(e){
     var t0 = performance.now(); if (A.t){ var g = t0 - A.t; if (g > A.maxGap) A.maxGap = g; if (g > A.exp * 1.6) A.late++; } A.t = t0; A.n++;
-    var r = f.call(this, e); var d = performance.now() - t0; if (d > A.maxRun) A.maxRun = d; return r;
+    var r = f.call(this, e); var d = performance.now() - t0; if (d > A.maxRun) A.maxRun = d;
+    /* Did the engine run short? When it can't fill a piece it repeats its last sample to the end of the piece. Look at the tail of each 1024-sample piece for a long flat run. */
+    try{
+      var L = e.outputBuffer.getChannelData(0), n = L.length, k, end, v, run;
+      for (k = 1024; k <= n; k += 1024){
+        end = k - 1; v = L[end]; run = 1;
+        while (run < 400 && end - run >= k - 1024 && L[end - run] === v) run++;
+        A.blocks = (A.blocks || 0) + 1;
+        if (run >= 24 && v !== 0){ A.hold = (A.hold || 0) + 1; if (run > (A.holdMax || 0)) A.holdMax = run; }
+      }
+    }catch(x){}
+    return r;
   };
 }
 function stallInfo(){
   var A = st.aw, P = st.pace; if (!A || !P) return '';
-  return ' · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
+  return ' · engine ran short ' + (A.hold || 0) + ' of ' + (A.blocks || 0) + ' pieces (longest flat run ' + (A.holdMax || 0) + ') · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
 }
 function paceWatch(){
   if (st.pace || !st.M) return;
@@ -468,6 +542,7 @@ function paceWatch(){
   }, 1000);
 }
 function audioInfo(){
+  if (EJS){ try{ var c0 = ejsCtx(), a0 = c0 && c0.audioCtx; return a0 ? 'Sound: EmulatorJS engine, ' + a0.sampleRate + ' Hz' + (a0.baseLatency ? ', output delay ' + Math.round((a0.baseLatency + (a0.outputLatency || 0)) * 1000) + ' ms' : '') + ' · ' + (a0.state === 'running' ? 'running' : 'sound ' + a0.state) : 'Sound: EmulatorJS engine'; }catch(e){ return ''; } }
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
     return n && c ? (window.__BETA ? 'BETA engine · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') + stallInfo() : ''; }catch(e){ return ''; }
 }
@@ -475,6 +550,7 @@ function audioInfo(){
 /* ---------- menu ---------- */
 function openMenu(){
   abufLabel(); softLabel(); rateLabel(); latLabel(); volLabel(); zoomLabel();
+  if (EJS) ['mn-vol', 'mn-soft', 'mn-rate', 'mn-lat', 'mn-rec', 'mn-tune'].forEach(function(id){ var b = $(id); if (b) b.hidden = true; });
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')

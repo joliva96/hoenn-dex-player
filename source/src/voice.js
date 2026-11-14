@@ -40,6 +40,7 @@ function tol(len, loose){ return len >= 9 ? (loose ? 3 : 2) : len >= 5 ? (loose 
 function snapshot(){
   var M = A.st.M;
   if (!M || !A.st.running) return Promise.reject(new Error('not running'));
+  if (M.ejs){ try{ return Promise.resolve(M.ejsSnapshot()); }catch(e){ return Promise.reject(e); } }
   if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('no DecompressionStream'));
   var dir = '/data/states', name = 'pokemon.ss9', path = dir + '/' + name;
   if (!M.saveState(9)) return Promise.reject(new Error('snapshot failed'));

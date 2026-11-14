@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script src="coi-serviceworker.js"></script><script>window.__BETA=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 25) BETA</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 26) BETA</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="../manifest.webmanifest"><link rel="apple-touch-icon" href="../icons/icon-180.png"><link rel="icon" type="image/png" href="../icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 25 BETA engine</h2>
+    <h2>Menu · build 26 BETA engine</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -1938,12 +1938,23 @@ function watchAudioCalls(){
   if (typeof f !== 'function') return;
   node.onaudioprocess = function(e){
     var t0 = performance.now(); if (A.t){ var g = t0 - A.t; if (g > A.maxGap) A.maxGap = g; if (g > A.exp * 1.6) A.late++; } A.t = t0; A.n++;
-    var r = f.call(this, e); var d = performance.now() - t0; if (d > A.maxRun) A.maxRun = d; return r;
+    var r = f.call(this, e); var d = performance.now() - t0; if (d > A.maxRun) A.maxRun = d;
+    /* Did the engine run short? When it can't fill a piece it repeats its last sample to the end of the piece. Look at the tail of each 1024-sample piece for a long flat run. */
+    try{
+      var L = e.outputBuffer.getChannelData(0), n = L.length, k, end, v, run;
+      for (k = 1024; k <= n; k += 1024){
+        end = k - 1; v = L[end]; run = 1;
+        while (run < 400 && end - run >= k - 1024 && L[end - run] === v) run++;
+        A.blocks = (A.blocks || 0) + 1;
+        if (run >= 24 && v !== 0){ A.hold = (A.hold || 0) + 1; if (run > (A.holdMax || 0)) A.holdMax = run; }
+      }
+    }catch(x){}
+    return r;
   };
 }
 function stallInfo(){
   var A = st.aw, P = st.pace; if (!A || !P) return '';
-  return ' · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
+  return ' · engine ran short ' + (A.hold || 0) + ' of ' + (A.blocks || 0) + ' pieces (longest flat run ' + (A.holdMax || 0) + ') · output delay ' + Math.round((st.M.SDL2.audioContext.outputLatency||0)*1000) + ' ms · late sound calls ' + A.late + ' of ' + A.n + ' (longest gap ' + Math.round(A.maxGap) + ' ms, normal ' + Math.round(A.exp) + ') · late frames ' + P.fLate + ' (longest ' + Math.round(P.fMax) + ' ms)';
 }
 function paceWatch(){
   if (st.pace || !st.M) return;
