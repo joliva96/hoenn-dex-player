@@ -135,3 +135,30 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
 .map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
 .map-info{text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
+
+.emu-keys{display:none}
+/* ---------- computer layout: wide window with a mouse. Phones never match (no hover, coarse pointer), so the portrait layout stays untouched. ---------- */
+@media (min-width:900px) and (hover:hover) and (pointer:fine){
+  .emu-body{display:grid;grid-template-columns:minmax(0,1fr) clamp(320px,30vw,460px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"scr side" "ctl side" "gap side";column-gap:20px;align-content:start;padding-block:0 14px}
+  .emu-screen{grid-area:scr;max-width:none;width:100%;margin:12px 0 0;justify-self:start}
+  .emu-fill{grid-area:side;padding:12px 0 0;align-items:stretch}
+  .emu-card{height:100%;align-content:start}
+  .emu-card[data-size="off"]{display:grid}
+  .emu-ctl{grid-area:ctl;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px 0}
+  .emu-sh,.emu-bot{display:contents}
+  .emu-ctl .emu-key,.emu-mid{display:none}
+  .emu-mic{order:1}.emu-menu{order:2}
+  .emu-keys{display:block;order:3;flex:1 1 320px;margin:0;font-size:.8rem;line-height:1.6;color:var(--emu-dim)}
+  .emu-keys b{color:var(--emu-ink);font-family:var(--mono);font-weight:700;font-size:.78rem;padding:1px 6px;border:1px solid var(--emu-edge);border-radius:6px;background:var(--surface2)}
+  .emu-menu,.emu-mic{cursor:pointer}.emu-menu:hover,.emu-mic:hover,.ec-tab:hover,.ec-open:hover,.map-bar button:hover{filter:brightness(1.15)}
+  .emu-sheet{left:50%;right:auto;bottom:24px;width:min(480px,92vw);transform:translateX(-50%);border:1px solid var(--emu-edge);border-radius:18px;padding:16px}
+  .ec-tabs{display:none}
+  .emu-card[data-view="map"]{grid-template-rows:auto auto minmax(0,1fr)}
+  .emu-card[data-view="map"] #ec-n{display:block}
+  .emu-card[data-view="map"] .ec-dex{display:grid}
+  .emu-card[data-view="map"] .ec-open:not(.ec-expand){display:block}
+  .emu-card[data-view="map"] .ec-head{justify-content:flex-start}
+  .ec-expand{margin-left:auto}.ec-head #ec-n{flex:1}
+  .emu-card[data-view="map"] .ec-map{min-height:300px}
+  .map-view canvas{cursor:grab}
+}

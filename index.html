@@ -408,6 +408,33 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
 .map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
 .map-info{text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
+
+.emu-keys{display:none}
+/* ---------- computer layout: wide window with a mouse. Phones never match (no hover, coarse pointer), so the portrait layout stays untouched. ---------- */
+@media (min-width:900px) and (hover:hover) and (pointer:fine){
+  .emu-body{display:grid;grid-template-columns:minmax(0,1fr) clamp(320px,30vw,460px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"scr side" "ctl side" "gap side";column-gap:20px;align-content:start;padding-block:0 14px}
+  .emu-screen{grid-area:scr;max-width:none;width:100%;margin:12px 0 0;justify-self:start}
+  .emu-fill{grid-area:side;padding:12px 0 0;align-items:stretch}
+  .emu-card{height:100%;align-content:start}
+  .emu-card[data-size="off"]{display:grid}
+  .emu-ctl{grid-area:ctl;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:12px 0}
+  .emu-sh,.emu-bot{display:contents}
+  .emu-ctl .emu-key,.emu-mid{display:none}
+  .emu-mic{order:1}.emu-menu{order:2}
+  .emu-keys{display:block;order:3;flex:1 1 320px;margin:0;font-size:.8rem;line-height:1.6;color:var(--emu-dim)}
+  .emu-keys b{color:var(--emu-ink);font-family:var(--mono);font-weight:700;font-size:.78rem;padding:1px 6px;border:1px solid var(--emu-edge);border-radius:6px;background:var(--surface2)}
+  .emu-menu,.emu-mic{cursor:pointer}.emu-menu:hover,.emu-mic:hover,.ec-tab:hover,.ec-open:hover,.map-bar button:hover{filter:brightness(1.15)}
+  .emu-sheet{left:50%;right:auto;bottom:24px;width:min(480px,92vw);transform:translateX(-50%);border:1px solid var(--emu-edge);border-radius:18px;padding:16px}
+  .ec-tabs{display:none}
+  .emu-card[data-view="map"]{grid-template-rows:auto auto minmax(0,1fr)}
+  .emu-card[data-view="map"] #ec-n{display:block}
+  .emu-card[data-view="map"] .ec-dex{display:grid}
+  .emu-card[data-view="map"] .ec-open:not(.ec-expand){display:block}
+  .emu-card[data-view="map"] .ec-head{justify-content:flex-start}
+  .ec-expand{margin-left:auto}.ec-head #ec-n{flex:1}
+  .emu-card[data-view="map"] .ec-map{min-height:300px}
+  .map-view canvas{cursor:grab}
+}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -476,6 +503,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <button class="emu-menu" id="emu-menu" type="button" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Menu</button>
       <div class="emu-key" data-btn="Start" role="button" aria-label="Start button">Start</div>
     </div>
+    <p class="emu-keys" id="emu-keys"><b>Arrows</b> move · <b>X</b> A · <b>Z</b> B · <b>Enter</b> Start · <b>Backspace</b> Select · <b>A</b> / <b>S</b> L / R · <b>M</b> map · <b>F</b> full screen · <b>Esc</b> menu</p>
   </div>
 
   </div>
@@ -484,7 +512,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 8</h2>
+    <h2>Menu · build 9</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -1951,10 +1979,16 @@ function zoomStep(dir){
   for (i = ZSTEPS.length - 1; i >= 0; i--) if (ZSTEPS[i] < z - 0.02) return setZoom(ZSTEPS[i]);
   setZoom(ZSTEPS[0]);
 }
+var DESK = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
+if (DESK.addEventListener) DESK.addEventListener('change', function(){ fitScreen(); fitCard(); });
 function fitScreen(){
   var box = $('emu-body'), el = document.querySelector('.emu-screen'), cv = $('emu-canvas'); if ($('emu').hidden) return;
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
+  if (DESK.matches){   /* computer layout: fill the left column, as large as fits, in whole-number steps */
+    el.style.width = ''; el.style.maxWidth = 'none';
+    var cellW = el.getBoundingClientRect().width, topY = el.getBoundingClientRect().top, ctlH = $('emu-ctl').offsetHeight + 28;
+    avail = Math.min(cellW, Math.max(240, window.innerHeight - topY - ctlH) * 1.5);
+  } else avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
   var snapped = n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04, base = snapped ? n * 240 : phys;
   var z = st.zoom || 1, frameW = base, mag = 0;
@@ -2001,6 +2035,52 @@ $('mn-zoom').addEventListener('click', function(){
   setZoom(next);
 });
 window.addEventListener('resize', function(){ fitScreen(); fitCard(); }); window.addEventListener('orientationchange', fitScreen);
+
+/* ---------- keyboard and game controller (computer) ---------- */
+var KB = {ArrowUp:'Up', ArrowDown:'Down', ArrowLeft:'Left', ArrowRight:'Right', x:'A', X:'A', z:'B', Z:'B', a:'L', A:'L', s:'R', S:'R', Enter:'Start', Backspace:'Select', Shift:'Select'};
+var kheld = {};
+function typing(e){ var t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
+function modalOpen(){ return !$('emu-sheet').hidden || ($('map-view') && !$('map-view').hidden); }
+document.addEventListener('keydown', function(e){
+  if (typing(e) || e.ctrlKey || e.metaKey || e.altKey || $('emu').hidden) return;
+  if (e.key === 'Escape'){
+    if ($('map-view') && !$('map-view').hidden){ $('map-close').click(); e.preventDefault(); return; }
+    if (!$('emu-sheet').hidden) closeMenu(); else openMenu();
+    e.preventDefault(); return;
+  }
+  if (e.key === 'f' || e.key === 'F'){ toggleFull(); e.preventDefault(); return; }
+  if ((e.key === 'm' || e.key === 'M') && !e.repeat){
+    if ($('map-view') && !$('map-view').hidden) $('map-close').click(); else if (!modalOpen()) $('mn-map').click();
+    e.preventDefault(); return;
+  }
+  var b = KB[e.key]; if (!b) return;
+  e.preventDefault(); if (e.repeat || modalOpen()) return;
+  if (!st.running){ if (e.key === 'Enter' && !$('sp-go').hidden) $('sp-go').click(); return; }
+  if (!kheld[e.key]){ kheld[e.key] = b; setKey(b, true); }
+});
+document.addEventListener('keyup', function(e){ var b = kheld[e.key]; if (b){ delete kheld[e.key]; setKey(b, false); } });
+window.addEventListener('blur', function(){ for (var k in kheld){ setKey(kheld[k], false); delete kheld[k]; } });
+function toggleFull(){
+  try{ if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(err){}
+}
+(function(){   /* game controllers: standard layout (Xbox / PlayStation / Switch Pro). Only checked while one is plugged in. */
+  var pads = 0, prev = {}, MAP = {1:'A', 0:'B', 4:'L', 5:'R', 8:'Select', 9:'Start', 12:'Up', 13:'Down', 14:'Left', 15:'Right'};
+  function poll(){
+    var gp = navigator.getGamepads ? navigator.getGamepads() : [], now = {}, i, j;
+    for (i = 0; i < gp.length; i++){ var g = gp[i]; if (!g) continue;
+      for (j in MAP) if (g.buttons[j] && g.buttons[j].pressed) now[MAP[j]] = 1;
+      if (g.axes[0] < -0.5) now.Left = 1; if (g.axes[0] > 0.5) now.Right = 1; if (g.axes[1] < -0.5) now.Up = 1; if (g.axes[1] > 0.5) now.Down = 1;
+    }
+    if (!modalOpen()){
+      for (var n in now) if (!prev[n]) setKey(n, true);
+      for (var m in prev) if (!now[m]) setKey(m, false);
+      prev = now;
+    } else if (Object.keys(prev).length){ for (var q in prev) setKey(q, false); prev = {}; }
+    if (pads) requestAnimationFrame(poll);
+  }
+  window.addEventListener('gamepadconnected', function(){ if (!pads){ pads = 1; requestAnimationFrame(poll); } toast('Game controller connected.', 2500); });
+  window.addEventListener('gamepaddisconnected', function(){ var any = false, gp = navigator.getGamepads ? navigator.getGamepads() : []; for (var i = 0; i < gp.length; i++) if (gp[i]) any = true; if (!any) pads = 0; });
+})();
 
 /* ---------- start ---------- */
 try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
@@ -2453,7 +2533,7 @@ function finish(){
 }
 function ensure(cb){
   if (G.ready) return cb(); if (G.building) return; G.building = true; setMsg('Drawing the map from your game…');
-  build(function(){ G.building = false; if (G.err) setMsg(G.err); else setMsg(''); cb(); });
+  build(function(){ G.building = false; G.fatal = !!G.err && G.err !== 'Load your game first.'; if (G.err) setMsg(G.err); else setMsg(''); cb(); });
 }
 
 /* ---------- where the trainer is ---------- */
@@ -2509,9 +2589,9 @@ function miniVisible(){ var c = $('emu-card'); return c && c.dataset.view === 'm
 function visible(){ return miniVisible() || !$('map-view').hidden; }
 function renderMini(){
   if (!miniVisible() || !G.ready) return; var re = sizeCanvas(mini); if (!re && !dirty) return; dirty = false;
-  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300}; drawView(mini, c.x, c.y, Math.round(8 * d));
+  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300}; drawView(mini, c.x, c.y, Math.round((DESKM.matches ? 12 : 8) * d));
 }
-setInterval(renderMini, 300);
+setInterval(function(){ if (!G.ready && !G.building && !G.fatal && miniVisible() && A.st.rom && A.st.rom.buf) ensure(function(){ dirty = true; }); renderMini(); }, 300);
 setInterval(poll, 2000);
 
 /* ---------- the full-screen viewer: drag to move, pinch to zoom ---------- */
@@ -2544,6 +2624,7 @@ big.addEventListener('pointermove', function(e){
 });
 function vend(e){ delete vpts[e.pointerId]; if (ids().length < 2) vpinch = null; if (ids().length === 1){ var k = ids()[0]; vdrag = {x: vpts[k][0], y: vpts[k][1], cx: view.cx, cy: view.cy}; } else if (!ids().length) vdrag = null; }
 big.addEventListener('pointerup', vend); big.addEventListener('pointercancel', vend);
+big.addEventListener('wheel', function(e){ e.preventDefault(); view.s = Math.max(0.4, Math.min(40, view.s * Math.exp(-e.deltaY * 0.0015))); renderBig(); }, {passive: false});
 $('map-close').addEventListener('click', closeBig);
 $('map-me').addEventListener('click', function(){ meView(); renderBig(); });
 $('map-fit').addEventListener('click', function(){ fitView(); renderBig(); });
@@ -2551,8 +2632,9 @@ window.addEventListener('resize', function(){ dirty = true; renderBig(); });
 setInterval(function(){ if (!$('map-view').hidden){ info(); } }, 1000);
 
 /* ---------- Pokédex | Map tabs on the card ---------- */
+var DESKM = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
 function setView(v){
-  var card = $('emu-card'); card.dataset.view = v; try{ localStorage.setItem('hdp-cardview', v); }catch(e){}
+  var card = $('emu-card'); card.dataset.view = v; if (!DESKM.matches) try{ localStorage.setItem('hdp-cardview', v); }catch(e){}
   $('ec-tab-dex').setAttribute('aria-pressed', v === 'dex'); $('ec-tab-map').setAttribute('aria-pressed', v === 'map');
   if (A.fitCard) A.fitCard(); dirty = true;
   if (v === 'map') ensure(function(){ dirty = true; renderMini(); poke(); });
@@ -2562,7 +2644,8 @@ $('ec-tab-map').addEventListener('click', function(){ setView('map'); });
 $('ec-expand').addEventListener('click', function(){ openBig(); });
 mini.addEventListener('click', function(){ openBig(); });
 $('mn-map').addEventListener('click', function(){ var was = !!(A.st.running || A.st.resumeAfterMenu); A.closeMenu(false); A.st.resumeAfterMenu = false; openBig(was); });
-try{ setView(localStorage.getItem('hdp-cardview') === 'map' ? 'map' : 'dex'); }catch(e){ setView('dex'); }
+function initView(){ if (DESKM.matches) return setView('map'); var v = 'dex'; try{ v = localStorage.getItem('hdp-cardview') === 'map' ? 'map' : 'dex'; }catch(e){} setView(v); }
+initView(); if (DESKM.addEventListener) DESKM.addEventListener('change', initView);
 
 window.hdpMap = {G: G, setPos: setPos, readPos: readPos, ensure: ensure, drawView: drawView, view: view, openBig: openBig, closeBig: closeBig, setView: setView, PLACE: PLACE};
 })();

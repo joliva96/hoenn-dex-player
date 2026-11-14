@@ -112,7 +112,7 @@ function finish(){
 }
 function ensure(cb){
   if (G.ready) return cb(); if (G.building) return; G.building = true; setMsg('Drawing the map from your game…');
-  build(function(){ G.building = false; if (G.err) setMsg(G.err); else setMsg(''); cb(); });
+  build(function(){ G.building = false; G.fatal = !!G.err && G.err !== 'Load your game first.'; if (G.err) setMsg(G.err); else setMsg(''); cb(); });
 }
 
 /* ---------- where the trainer is ---------- */
@@ -168,9 +168,9 @@ function miniVisible(){ var c = $('emu-card'); return c && c.dataset.view === 'm
 function visible(){ return miniVisible() || !$('map-view').hidden; }
 function renderMini(){
   if (!miniVisible() || !G.ready) return; var re = sizeCanvas(mini); if (!re && !dirty) return; dirty = false;
-  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300}; drawView(mini, c.x, c.y, Math.round(8 * d));
+  var d = window.devicePixelRatio || 1, c = G.last || {x: 150, y: 300}; drawView(mini, c.x, c.y, Math.round((DESKM.matches ? 12 : 8) * d));
 }
-setInterval(renderMini, 300);
+setInterval(function(){ if (!G.ready && !G.building && !G.fatal && miniVisible() && A.st.rom && A.st.rom.buf) ensure(function(){ dirty = true; }); renderMini(); }, 300);
 setInterval(poll, 2000);
 
 /* ---------- the full-screen viewer: drag to move, pinch to zoom ---------- */
@@ -203,6 +203,7 @@ big.addEventListener('pointermove', function(e){
 });
 function vend(e){ delete vpts[e.pointerId]; if (ids().length < 2) vpinch = null; if (ids().length === 1){ var k = ids()[0]; vdrag = {x: vpts[k][0], y: vpts[k][1], cx: view.cx, cy: view.cy}; } else if (!ids().length) vdrag = null; }
 big.addEventListener('pointerup', vend); big.addEventListener('pointercancel', vend);
+big.addEventListener('wheel', function(e){ e.preventDefault(); view.s = Math.max(0.4, Math.min(40, view.s * Math.exp(-e.deltaY * 0.0015))); renderBig(); }, {passive: false});
 $('map-close').addEventListener('click', closeBig);
 $('map-me').addEventListener('click', function(){ meView(); renderBig(); });
 $('map-fit').addEventListener('click', function(){ fitView(); renderBig(); });
@@ -210,8 +211,9 @@ window.addEventListener('resize', function(){ dirty = true; renderBig(); });
 setInterval(function(){ if (!$('map-view').hidden){ info(); } }, 1000);
 
 /* ---------- Pokédex | Map tabs on the card ---------- */
+var DESKM = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
 function setView(v){
-  var card = $('emu-card'); card.dataset.view = v; try{ localStorage.setItem('hdp-cardview', v); }catch(e){}
+  var card = $('emu-card'); card.dataset.view = v; if (!DESKM.matches) try{ localStorage.setItem('hdp-cardview', v); }catch(e){}
   $('ec-tab-dex').setAttribute('aria-pressed', v === 'dex'); $('ec-tab-map').setAttribute('aria-pressed', v === 'map');
   if (A.fitCard) A.fitCard(); dirty = true;
   if (v === 'map') ensure(function(){ dirty = true; renderMini(); poke(); });
@@ -221,7 +223,8 @@ $('ec-tab-map').addEventListener('click', function(){ setView('map'); });
 $('ec-expand').addEventListener('click', function(){ openBig(); });
 mini.addEventListener('click', function(){ openBig(); });
 $('mn-map').addEventListener('click', function(){ var was = !!(A.st.running || A.st.resumeAfterMenu); A.closeMenu(false); A.st.resumeAfterMenu = false; openBig(was); });
-try{ setView(localStorage.getItem('hdp-cardview') === 'map' ? 'map' : 'dex'); }catch(e){ setView('dex'); }
+function initView(){ if (DESKM.matches) return setView('map'); var v = 'dex'; try{ v = localStorage.getItem('hdp-cardview') === 'map' ? 'map' : 'dex'; }catch(e){} setView(v); }
+initView(); if (DESKM.addEventListener) DESKM.addEventListener('change', initView);
 
 window.hdpMap = {G: G, setPos: setPos, readPos: readPos, ensure: ensure, drawView: drawView, view: view, openBig: openBig, closeBig: closeBig, setView: setView, PLACE: PLACE};
 })();

@@ -476,10 +476,16 @@ function zoomStep(dir){
   for (i = ZSTEPS.length - 1; i >= 0; i--) if (ZSTEPS[i] < z - 0.02) return setZoom(ZSTEPS[i]);
   setZoom(ZSTEPS[0]);
 }
+var DESK = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
+if (DESK.addEventListener) DESK.addEventListener('change', function(){ fitScreen(); fitCard(); });
 function fitScreen(){
   var box = $('emu-body'), el = document.querySelector('.emu-screen'), cv = $('emu-canvas'); if ($('emu').hidden) return;
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
+  if (DESK.matches){   /* computer layout: fill the left column, as large as fits, in whole-number steps */
+    el.style.width = ''; el.style.maxWidth = 'none';
+    var cellW = el.getBoundingClientRect().width, topY = el.getBoundingClientRect().top, ctlH = $('emu-ctl').offsetHeight + 28;
+    avail = Math.min(cellW, Math.max(240, window.innerHeight - topY - ctlH) * 1.5);
+  } else avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
   var snapped = n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04, base = snapped ? n * 240 : phys;
   var z = st.zoom || 1, frameW = base, mag = 0;
@@ -526,6 +532,52 @@ $('mn-zoom').addEventListener('click', function(){
   setZoom(next);
 });
 window.addEventListener('resize', function(){ fitScreen(); fitCard(); }); window.addEventListener('orientationchange', fitScreen);
+
+/* ---------- keyboard and game controller (computer) ---------- */
+var KB = {ArrowUp:'Up', ArrowDown:'Down', ArrowLeft:'Left', ArrowRight:'Right', x:'A', X:'A', z:'B', Z:'B', a:'L', A:'L', s:'R', S:'R', Enter:'Start', Backspace:'Select', Shift:'Select'};
+var kheld = {};
+function typing(e){ var t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
+function modalOpen(){ return !$('emu-sheet').hidden || ($('map-view') && !$('map-view').hidden); }
+document.addEventListener('keydown', function(e){
+  if (typing(e) || e.ctrlKey || e.metaKey || e.altKey || $('emu').hidden) return;
+  if (e.key === 'Escape'){
+    if ($('map-view') && !$('map-view').hidden){ $('map-close').click(); e.preventDefault(); return; }
+    if (!$('emu-sheet').hidden) closeMenu(); else openMenu();
+    e.preventDefault(); return;
+  }
+  if (e.key === 'f' || e.key === 'F'){ toggleFull(); e.preventDefault(); return; }
+  if ((e.key === 'm' || e.key === 'M') && !e.repeat){
+    if ($('map-view') && !$('map-view').hidden) $('map-close').click(); else if (!modalOpen()) $('mn-map').click();
+    e.preventDefault(); return;
+  }
+  var b = KB[e.key]; if (!b) return;
+  e.preventDefault(); if (e.repeat || modalOpen()) return;
+  if (!st.running){ if (e.key === 'Enter' && !$('sp-go').hidden) $('sp-go').click(); return; }
+  if (!kheld[e.key]){ kheld[e.key] = b; setKey(b, true); }
+});
+document.addEventListener('keyup', function(e){ var b = kheld[e.key]; if (b){ delete kheld[e.key]; setKey(b, false); } });
+window.addEventListener('blur', function(){ for (var k in kheld){ setKey(kheld[k], false); delete kheld[k]; } });
+function toggleFull(){
+  try{ if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(err){}
+}
+(function(){   /* game controllers: standard layout (Xbox / PlayStation / Switch Pro). Only checked while one is plugged in. */
+  var pads = 0, prev = {}, MAP = {1:'A', 0:'B', 4:'L', 5:'R', 8:'Select', 9:'Start', 12:'Up', 13:'Down', 14:'Left', 15:'Right'};
+  function poll(){
+    var gp = navigator.getGamepads ? navigator.getGamepads() : [], now = {}, i, j;
+    for (i = 0; i < gp.length; i++){ var g = gp[i]; if (!g) continue;
+      for (j in MAP) if (g.buttons[j] && g.buttons[j].pressed) now[MAP[j]] = 1;
+      if (g.axes[0] < -0.5) now.Left = 1; if (g.axes[0] > 0.5) now.Right = 1; if (g.axes[1] < -0.5) now.Up = 1; if (g.axes[1] > 0.5) now.Down = 1;
+    }
+    if (!modalOpen()){
+      for (var n in now) if (!prev[n]) setKey(n, true);
+      for (var m in prev) if (!now[m]) setKey(m, false);
+      prev = now;
+    } else if (Object.keys(prev).length){ for (var q in prev) setKey(q, false); prev = {}; }
+    if (pads) requestAnimationFrame(poll);
+  }
+  window.addEventListener('gamepadconnected', function(){ if (!pads){ pads = 1; requestAnimationFrame(poll); } toast('Game controller connected.', 2500); });
+  window.addEventListener('gamepaddisconnected', function(){ var any = false, gp = navigator.getGamepads ? navigator.getGamepads() : []; for (var i = 0; i < gp.length; i++) if (gp[i]) any = true; if (!any) pads = 0; });
+})();
 
 /* ---------- start ---------- */
 try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
