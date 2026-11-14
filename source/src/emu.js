@@ -132,6 +132,19 @@ $('sp-alt').addEventListener('click', function(){ $('emu-rom').click(); });
 function hideSplash(){ $('emu-splash').hidden = true; }
 
 /* ---------- the emulator engine (mGBA compiled to WebAssembly, single-threaded build) ---------- */
+/* ---------- sound rate: ask the browser for a particular sound-card rate (32768 Hz is the Game Boy's own, so nothing has to be converted inside the engine). Applies after a full restart. ---------- */
+var RATES = [0, 32768, 44100, 96000], RATEN = ['Automatic', '32768 Hz (Game Boy native)', '44100 Hz', '96000 Hz'];
+function rateIdx(){ try{ var v = +localStorage.getItem('hdp-rate'); return v >= 0 && v < RATES.length ? v : 0; }catch(e){ return 0; } }
+function rateLabel(){ $('mn-rate-t').textContent = 'Sound rate: ' + RATEN[rateIdx()]; }
+(function(){
+  var r = RATES[rateIdx()], AC = window.AudioContext; if (!r || !AC) return;
+  var W = function(o){ try{ return new AC(Object.assign({}, o, {sampleRate: r})); }catch(e){ return new AC(o); } };
+  W.prototype = AC.prototype; window.AudioContext = W;
+})();
+$('mn-rate').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
+  rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
+});
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
@@ -417,7 +430,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')

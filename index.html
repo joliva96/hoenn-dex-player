@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 19)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 20)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -519,7 +519,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 19</h2>
+    <h2>Menu · build 20</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -530,6 +530,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <button class="emu-item" id="mn-map" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg>Open map</button>
       <button class="emu-item" id="mn-vol" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-vol-t">Audio smoothing: Medium</span></button>
       <button class="emu-item" id="mn-soft" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-soft-t">Sound softening: Off</span></button>
+      <button class="emu-item" id="mn-rate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rate-t">Sound rate: Automatic</span></button>
       <button class="emu-item" id="mn-rec" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zM17 8.5a5 5 0 0 1 0 7"/></svg><span id="mn-rec-t">Record 8 s of sound (.wav)</span></button>
       <button class="emu-item" id="mn-rst" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg>Restart game</button>
       <button class="emu-item" id="mn-rom" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/></svg>Choose a different ROM</button>
@@ -1644,6 +1645,19 @@ $('sp-alt').addEventListener('click', function(){ $('emu-rom').click(); });
 function hideSplash(){ $('emu-splash').hidden = true; }
 
 /* ---------- the emulator engine (mGBA compiled to WebAssembly, single-threaded build) ---------- */
+/* ---------- sound rate: ask the browser for a particular sound-card rate (32768 Hz is the Game Boy's own, so nothing has to be converted inside the engine). Applies after a full restart. ---------- */
+var RATES = [0, 32768, 44100, 96000], RATEN = ['Automatic', '32768 Hz (Game Boy native)', '44100 Hz', '96000 Hz'];
+function rateIdx(){ try{ var v = +localStorage.getItem('hdp-rate'); return v >= 0 && v < RATES.length ? v : 0; }catch(e){ return 0; } }
+function rateLabel(){ $('mn-rate-t').textContent = 'Sound rate: ' + RATEN[rateIdx()]; }
+(function(){
+  var r = RATES[rateIdx()], AC = window.AudioContext; if (!r || !AC) return;
+  var W = function(o){ try{ return new AC(Object.assign({}, o, {sampleRate: r})); }catch(e){ return new AC(o); } };
+  W.prototype = AC.prototype; window.AudioContext = W;
+})();
+$('mn-rate').addEventListener('click', function(){
+  try{ localStorage.setItem('hdp-rate', String((rateIdx() + 1) % RATES.length)); }catch(e){}
+  rateLabel(); toast('Sound rate: ' + RATEN[rateIdx()] + '. Fully close and reopen the page to apply.', 5000);
+});
 function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
@@ -1929,7 +1943,7 @@ function audioInfo(){
 
 /* ---------- menu ---------- */
 function openMenu(){
-  abufLabel(); softLabel(); zoomLabel();
+  abufLabel(); softLabel(); rateLabel(); zoomLabel();
   st.resumeAfterMenu = st.running; if (st.running) pause();
   var n = window.hdfDex ? window.hdfDex.count() : 0;
   $('mn-stat').textContent = (st.rom && st.rom.track ? n + ' of 386 caught in your Pokédex' : '') + (st.noStore ? (window.claude ? '. This view cannot keep files on your phone, so your save is backed up to your account only.' : '. This browser cannot keep files on your phone, so export your save often.') : '')
