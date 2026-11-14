@@ -307,12 +307,24 @@ $('mn-vol').addEventListener('click', function(){
 });
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
-  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else st.hz = Math.round(n * 1000 / (t - t0)); }
+  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); limitSpeed(); } }
   requestAnimationFrame(f);
+}
+/* The engine paces itself on the screen's refresh. On a 120 / 144 / 240 Hz monitor that would run the game far too fast, so on those screens
+   the engine is switched to its own timer and the timer is tuned until it produces the real Game Boy rate (about 59.73 frames a second). */
+function limitSpeed(){
+  if (st.limiter || !st.M || !(st.hz >= 70)) return;
+  var v = 17.5, n = 0, t0 = performance.now(); st.limiter = 1;
+  try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ n++; }}); st.M.setMainLoopTiming(0, v); }catch(e){ st.limiter = 0; return; }
+  setInterval(function(){
+    var now = performance.now(), dt = now - t0, c = n; t0 = now; n = 0;
+    if (!st.running || dt < 1500 || c < 20) return;
+    var rate = c * 1000 / dt; st.rate = Math.round(rate * 10) / 10; st.tv = v; if (Math.abs(rate - 59.73) > 0.4){ v = Math.max(12, Math.min(22, v * rate / 59.73)); try{ st.M.setMainLoopTiming(0, v); }catch(e){} }
+  }, 2000);
 }
 function audioInfo(){
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
-    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' : ''; }catch(e){ return ''; }
+    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.limiter && st.rate ? ' · game held to ' + st.rate + ' fps' : '') : ''; }catch(e){ return ''; }
 }
 
 /* ---------- menu ---------- */
@@ -476,24 +488,26 @@ function zoomStep(dir){
   for (i = ZSTEPS.length - 1; i >= 0; i--) if (ZSTEPS[i] < z - 0.02) return setZoom(ZSTEPS[i]);
   setZoom(ZSTEPS[0]);
 }
-var DESK = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
-if (DESK.addEventListener) DESK.addEventListener('change', function(){ fitScreen(); fitCard(); });
+var DESK = window.matchMedia('(hover:hover) and (pointer:fine)'), WIDE = window.matchMedia('(min-width:900px) and (hover:hover) and (pointer:fine)');
+if (DESK.addEventListener){ DESK.addEventListener('change', function(){ fitScreen(); fitCard(); }); WIDE.addEventListener('change', function(){ fitScreen(); fitCard(); }); }
+try{ if (window.ResizeObserver) new ResizeObserver(function(){ fitScreen(); fitCard(); }).observe($('emu-ctl')); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ fitScreen(); fitCard(); }); }catch(e){}
 function fitScreen(){
   var box = $('emu-body'), el = document.querySelector('.emu-screen'), cv = $('emu-canvas'); if ($('emu').hidden) return;
   var cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  if (DESK.matches){   /* computer layout: fill the left column, as large as fits, in whole-number steps */
+  if (DESK.matches){   /* computer layout: as large as fits the window, in whole-number steps */
     el.style.width = ''; el.style.maxWidth = 'none';
-    var cellW = el.getBoundingClientRect().width, topY = el.getBoundingClientRect().top, ctlH = $('emu-ctl').offsetHeight + 28;
-    avail = Math.min(cellW, Math.max(240, window.innerHeight - topY - ctlH) * 1.5);
+    var r0 = el.getBoundingClientRect(), cellW = r0.width, topY = r0.top, ctlH = $('emu-ctl').offsetHeight + 24, below = WIDE.matches ? 0 : 130;
+    avail = Math.min(cellW, Math.max(240, window.innerHeight - topY - ctlH - below) * 1.5);
   } else avail = Math.min(avail, window.innerHeight * 0.54 * 1.5);
   var dpr = window.devicePixelRatio || 1, phys = avail * dpr, n = Math.round(phys / 240);
-  var snapped = n >= 1 && Math.abs(n * 240 - phys) / phys <= 0.04, base = snapped ? n * 240 : phys;
+  if (DESK.matches && phys >= 720) n = Math.floor(phys / 240);   /* big windows: whole-number sizes so pixels stay sharp */
+  var snapped = n >= 1 && (Math.abs(n * 240 - phys) / phys <= 0.04 || (DESK.matches && phys >= 720)), base = snapped ? n * 240 : phys;
   var z = st.zoom || 1, frameW = base, mag = 0;
   if (Math.abs(z - 1) >= 0.06){
     var Si = Math.max(1, Math.round(base / 240 * z));
     if (Si * 240 <= base) frameW = Si * 240; else mag = Si;
   }
-  if (frameW !== phys){ el.style.width = (frameW / dpr) + 'px'; el.style.maxWidth = 'none'; }
+  if (frameW !== phys || DESK.matches){ el.style.width = (frameW / dpr) + 'px'; el.style.maxWidth = 'none'; }
   else { el.style.width = ''; el.style.maxWidth = ''; }
   if (mag){
     var fh = frameW * 160 / 240, w = mag * 240, h = mag * 160;

@@ -10,12 +10,12 @@ assert '<title>' not in c[:200] and 'claude:viewport' not in c[:200]
 n=c.count('<h2>Menu</h2>'); assert n==1,n
 c=c.replace('<h2>Menu</h2>','<h2>Menu · build %s</h2>'%BUILD)
 head='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build BUILDNUM)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 '''
-open(OUT+'/index.html','w',encoding='utf8').write(head+c+'</body></html>')
+open(OUT+'/index.html','w',encoding='utf8').write((head.replace('BUILDNUM',BUILD)+c+'</body></html>'))
 json.dump({"name":"Hoenn Dex Player","short_name":"Dex Player","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#06281c","theme_color":"#06281c",
  "icons":[{"src":"icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icons/icon-512.png","sizes":"512x512","type":"image/png"}]},open(OUT+'/manifest.webmanifest','w'),indent=1)
 # icon: green lens, drawn at 1024 and scaled down
