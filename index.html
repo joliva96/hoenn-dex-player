@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 31)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 32)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -404,7 +404,8 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .emu-card[data-view="map"][data-size="off"]{display:grid}
 .map-view{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
 .map-view[hidden]{display:none}
-.map-view canvas{flex:1;min-height:0;width:100%;touch-action:none;image-rendering:pixelated}
+.map-stage{flex:1;min-height:0;position:relative}
+.map-view canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;image-rendering:pixelated}
 .map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
 .map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
 .map-info{text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
@@ -442,6 +443,10 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
   .ec-expand{margin-left:auto}.ec-head #ec-n{flex:1}
   .emu-card[data-view="map"] .ec-map{min-height:120px}
 }
+
+/* no double-tap zoom, no text magnifier or selection on buttons and the map (iPhone) */
+button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.emu-card *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.map-view canvas{touch-action:none}
 </style>
 <div id="emu" role="application" aria-label="Game Boy Advance emulator">
   <header class="top emu-top">
@@ -478,7 +483,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
       <div class="ec-map"><canvas id="map-mini" aria-label="Map of the area you have walked"></canvas><p class="map-empty" id="map-empty">Walk around and the map fills in. It only shows places you have already seen.</p></div>
     </section>
     <div class="map-view" id="map-view" hidden>
-      <canvas id="map-big" aria-label="Full map"></canvas>
+      <div class="map-stage"><canvas id="map-big" aria-label="Full map"></canvas></div>
       <div class="map-bar"><button type="button" id="map-back" hidden>Back</button><button type="button" id="map-close">Close</button><button type="button" id="map-me">You</button><button type="button" id="map-fit">Fit all</button></div>
       <p class="map-info" id="map-info"></p>
     </div>
@@ -519,7 +524,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 31</h2>
+    <h2>Menu · build 32</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">

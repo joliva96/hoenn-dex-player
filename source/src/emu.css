@@ -131,7 +131,8 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 .emu-card[data-view="map"][data-size="off"]{display:grid}
 .map-view{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
 .map-view[hidden]{display:none}
-.map-view canvas{flex:1;min-height:0;width:100%;touch-action:none;image-rendering:pixelated}
+.map-stage{flex:1;min-height:0;position:relative}
+.map-view canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;image-rendering:pixelated}
 .map-bar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface)}
 .map-bar button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--emu-edge);background:var(--surface2);color:var(--emu-ink);font-weight:700}
 .map-info{text-shadow:0 1px 3px #000,0 0 6px #000;position:absolute;top:calc(8px + env(safe-area-inset-top));left:0;right:0;margin:0;text-align:center;font-size:.78rem;color:#cfd6dd;pointer-events:none}
@@ -169,3 +170,7 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
   .ec-expand{margin-left:auto}.ec-head #ec-n{flex:1}
   .emu-card[data-view="map"] .ec-map{min-height:120px}
 }
+
+/* no double-tap zoom, no text magnifier or selection on buttons and the map (iPhone) */
+button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.emu-card *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.map-view canvas{touch-action:none}
