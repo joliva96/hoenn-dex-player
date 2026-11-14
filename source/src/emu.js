@@ -205,6 +205,7 @@ function play(){
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
   measureHz(); paceWatch();
+  if (st.pace){ st.pace.hist = []; st.pace.v = st.pace.good; }
   st.running = true; hideSplash(); wake();
 }
 function pause(){
@@ -328,8 +329,13 @@ function paceWatch(){
   if (st.hz >= 70){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
   /* The sound card's clock only ticks in coarse steps (about 40 ms with this buffer), so a short measurement can be off by several percent and make the speed swing up and down,
      which is itself audible. So: measure over a long sliding window (8 s), correct gently, and leave the timer alone when it is already close. */
-  P.hist = [];
+  P.hist = []; P.good = P.v; P.tick = performance.now();
+  function backToGood(){ P.hist = []; P.v = P.good; }
+  document.addEventListener('visibilitychange', backToGood);
   setInterval(function(){
+    /* Tab in the background: the browser slows timers to a crawl, so the numbers are meaningless; when the tab returns, go back to the last good speed. */
+    var pn = performance.now(), gap = pn - P.tick; P.tick = pn;
+    if (document.hidden || gap > 2500){ backToGood(); return; }
     var s2 = st.M && st.M.SDL2, ctx = s2 && s2.audioContext;
     if (!st.running || !ctx || ctx.state !== 'running'){ P.hist = []; return; }
     var now = ctx.currentTime; P.hist.push([now, P.n]); if (P.hist.length > 9) P.hist.shift();
@@ -344,6 +350,7 @@ function paceWatch(){
       P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1) * g))); P.hist = [[now, P.n]];
       try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
     }
+    if (Math.abs(ratio - 1) < 0.01) P.good = P.v;
     st.tv = P.v;
   }, 1000);
 }
