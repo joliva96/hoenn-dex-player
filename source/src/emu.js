@@ -149,7 +149,12 @@ function loadEngine(){
   if (st.enginePromise) return st.enginePromise;
   window.__abufMul = ABUF[abufIdx()];
   st.enginePromise = import('./mgba.js').then(function(mod){ return mod.default({canvas:$('emu-canvas')}); }).then(function(M){
-    return M.FSInit().then(function(){ try{ M.toggleInput(false); }catch(e){} st.M = M; return M; });
+    return M.FSInit().then(function(){
+      try{ M.toggleInput(false); }catch(e){}
+      /* Beta engine (mGBA-wasm 2.x): let the engine pace the game by the sound itself, like desktop mGBA's "Sync: Audio". */
+      if (window.__BETA){ try{ M.setCoreSettings({audioSync: true, audioBufferSize: 1536}); }catch(e){ st.betaErr = String(e); } }
+      st.M = M; return M;
+    });
   });
   st.enginePromise.catch(function(){ st.enginePromise = null; });
   return st.enginePromise;
@@ -392,7 +397,7 @@ function measureHz(){
    So the app counts game frames against the sound card's own clock. If they disagree by more than a hair it hands the pacing to the engine's timer and keeps nudging that timer
    until game frames and sound match, which also fixes the game running too fast on 120 / 144 / 240 Hz screens. */
 function paceWatch(){
-  if (st.pace || !st.M) return;
+  if (window.__BETA || st.pace || !st.M) return;
   var P = st.pace = {mode: 'screen', acc: 0, v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
   try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){
     P.n++;
@@ -430,7 +435,7 @@ function paceWatch(){
 }
 function audioInfo(){
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
-    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
+    return n && c ? (window.__BETA ? 'BETA engine (sound-synced) · ' : '') + 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
 }
 
 /* ---------- menu ---------- */
