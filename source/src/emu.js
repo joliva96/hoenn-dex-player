@@ -204,7 +204,7 @@ function play(){
   if (!st.started || st.view !== 'game') return;
   unlockAudio();
   try{ st.M.resumeGame(); }catch(e){}
-  measureHz();
+  measureHz(); paceWatch();
   st.running = true; hideSplash(); wake();
 }
 function pause(){
@@ -307,24 +307,39 @@ $('mn-vol').addEventListener('click', function(){
 });
 function measureHz(){
   if (st.hz) return; var n = 0, t0 = 0;
-  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else { st.hz = Math.round(n * 1000 / (t - t0)); limitSpeed(); } }
+  function f(t){ if (!t0) t0 = t; n++; if (t - t0 < 1000) requestAnimationFrame(f); else st.hz = Math.round(n * 1000 / (t - t0)); }
   requestAnimationFrame(f);
 }
-/* The engine paces itself on the screen's refresh. On a 120 / 144 / 240 Hz monitor that would run the game far too fast, so on those screens
-   the engine is switched to its own timer and the timer is tuned until it produces the real Game Boy rate (about 59.73 frames a second). */
-function limitSpeed(){
-  if (st.limiter || !st.M || !(st.hz >= 70)) return;
-  var v = 17.5, n = 0, t0 = performance.now(); st.limiter = 1;
-  try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ n++; }}); st.M.setMainLoopTiming(0, v); }catch(e){ st.limiter = 0; return; }
+/* Keeping the game and the sound in step.
+   The engine makes one game frame per screen refresh, and each frame also makes a slice of sound. The sound card then plays that sound at its own steady rate.
+   If the screen runs a hair faster than a real Game Boy (59.73 frames a second; most screens are 60.00, some 144 or more) the engine makes more sound than the card plays,
+   the overflow gets dropped, and you hear a skip or a crunch every few seconds. A slower screen starves the sound card instead.
+   So the app counts game frames against the sound card's own clock. If they disagree by more than a hair it hands the pacing to the engine's timer and keeps nudging that timer
+   until game frames and sound match, which also fixes the game running too fast on 120 / 144 / 240 Hz screens. */
+function paceWatch(){
+  if (st.pace || !st.M) return;
+  var P = st.pace = {mode: 'screen', v: 16.743, n: 0, n0: 0, t0: null, ratio: 0}, GB = 59.7275;
+  try{ st.M.addCoreCallbacks({videoFrameEndedCallback: function(){ P.n++; }}); }catch(e){ st.pace = null; return; }
   setInterval(function(){
-    var now = performance.now(), dt = now - t0, c = n; t0 = now; n = 0;
-    if (!st.running || dt < 1500 || c < 20) return;
-    var rate = c * 1000 / dt; st.rate = Math.round(rate * 10) / 10; st.tv = v; if (Math.abs(rate - 59.73) > 0.4){ v = Math.max(12, Math.min(22, v * rate / 59.73)); try{ st.M.setMainLoopTiming(0, v); }catch(e){} }
-  }, 2000);
+    var s2 = st.M && st.M.SDL2, ctx = s2 && s2.audioContext;
+    if (!st.running || !ctx || ctx.state !== 'running'){ P.t0 = null; return; }
+    var now = ctx.currentTime;
+    if (P.t0 === null){ P.t0 = now; P.n0 = P.n; return; }
+    var dt = now - P.t0; if (dt < 2.5) return;
+    var rate = (P.n - P.n0) / dt, ratio = rate / GB; P.t0 = now; P.n0 = P.n;
+    if (rate < 10) return;   /* a hiccup (tab in the background, loading): not a measurement */
+    P.ratio = ratio; st.rate = Math.round(rate * 100) / 100; st.hzScreenRate = rate;
+    if (P.mode === 'screen'){
+      if (Math.abs(ratio - 1) > 0.0015){ P.mode = 'timer'; st.limiter = 1; try{ st.M.setMainLoopTiming(0, P.v); }catch(e){} }
+    } else if (Math.abs(ratio - 1) > 0.0004){
+      P.v = Math.max(10, Math.min(30, P.v * (1 + (ratio - 1) * 0.8))); try{ st.M.setMainLoopTiming(0, P.v); }catch(e){}
+    }
+    st.tv = P.v;
+  }, 1000);
 }
 function audioInfo(){
   try{ var s2 = st.M && st.M.SDL2, n = s2 && s2.audio && s2.audio.scriptProcessorNode, c = s2 && s2.audioContext;
-    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.limiter && st.rate ? ' · game held to ' + st.rate + ' fps' : '') : ''; }catch(e){ return ''; }
+    return n && c ? 'Sound: ' + c.sampleRate + ' Hz, buffer ' + n.bufferSize + ' · screen ' + (st.hz || '?') + ' Hz' + (st.rate ? ' · game ' + st.rate + ' fps vs sound clock' + (st.limiter ? ' (paced by timer)' : ' (paced by screen)') : '') : ''; }catch(e){ return ''; }
 }
 
 /* ---------- menu ---------- */
