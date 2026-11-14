@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 40)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 41)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -532,7 +532,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 40</h2>
+    <h2>Menu · build 41</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -2896,7 +2896,7 @@ function build(done){
     for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(mapHeader(PLACE[k][0])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
   }catch(e){ G.err = 'This game file has different maps than the usual Emerald, so the map is not available.'; return done(); }
   G.cells = new Int32Array(WW * WH).fill(-1); G.atlas = new Uint8ClampedArray(1024 * 2048 * 4); G.n = 0; G.byId = {}; TS = {};
-  var i = 0, pass = G.fan ? 1 : 0, LASTP = G.fan ? 2 : 3, F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
+  var i = 0, pass = 0, LASTP = 3, F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
   (function step(){
     var t0 = Date.now();
     while (pass < LASTP && Date.now() - t0 < 12){
@@ -2909,6 +2909,7 @@ function build(done){
         });
         for (var gx = 0; gx < WW; gx++){
           if (G.cells[fy * WW + gx] >= 0) continue;
+          if (G.fanPx){ if (!G.det) detailMap(); if (G.det[fy * WW + gx]) continue; }   /* detailed picture area (islands, buildings): leave it to the picture */
           var want = fillClass(gx, fy), bi = -1, bd = 1e12, bi2 = -1, bd2 = 1e12;
           for (var fi = 0; fi < F.length; fi++){ var f = F[fi], ddx = gx < f.x0 ? f.x0 - gx : (gx >= f.x1 ? gx - f.x1 + 1 : 0), ddy = fy < f.y0 ? f.y0 - fy : (fy >= f.y1 ? fy - f.y1 + 1 : 0), dd = ddx * ddx + ddy * ddy; if (dd < bd2){ bd2 = dd; bi2 = fi; } if (f.cl === want && dd < bd){ bd = dd; bi = fi; } }
           var fb = F[bi >= 0 ? bi : bi2]; G.cells[fy * WW + gx] = cellFor(fb.t1, fb.t2, fb.bl[((gx - fb.x0) & 1) + ((fy - fb.y0) & 1) * 2]);
@@ -2948,7 +2949,7 @@ function finish(){
   }
   var ow = WW * 4, oh = WH * 4, od = new Uint8ClampedArray(ow * oh * 4);
   for (var cy = 0; cy < WH; cy++) for (var cx = 0; cx < WW; cx++){
-    var c = G.cells[cy * WW + cx]; if (c < 0) { if (!G.fan) for (var yy = 0; yy < 4; yy++) for (var xx = 0; xx < 4; xx++) od[((cy * 4 + yy) * ow + cx * 4 + xx) * 4 + 3] = 255; continue; }
+    var c = G.cells[cy * WW + cx]; if (c < 0) { for (var yy = 0; yy < 4; yy++) for (var xx = 0; xx < 4; xx++) od[((cy * 4 + yy) * ow + cx * 4 + xx) * 4 + 3] = 255; continue; }
     for (var yy2 = 0; yy2 < 4; yy2++) for (var xx2 = 0; xx2 < 4; xx2++){ var s = (c * 16 + yy2 * 4 + xx2) * 4, d = ((cy * 4 + yy2) * ow + cx * 4 + xx2) * 4; od[d] = small[s]; od[d + 1] = small[s + 1]; od[d + 2] = small[s + 2]; od[d + 3] = 255; }
   }
   var oc = document.createElement('canvas'); oc.width = ow; oc.height = oh; oc.getContext('2d').putImageData(new ImageData(od, ow, oh), 0, 0); G.over = oc;
@@ -2960,10 +2961,24 @@ function ensure(cb){
 }
 /* the fan-made reference map (map/hoenn.png) is the scenery behind and around the places drawn from the game; ~1.51 px per tile, found by matching it to the game's own layout */
 var FAN_S = 1.51, FAN_OX = 1.0, FAN_OY = 24.5;
+function detailMap(){   /* cells where the picture has detail, widened by 4 cells so plain land/sea next to detail stays with the picture too */
+  var D = new Uint8Array(WW * WH), E = new Uint8Array(WW * WH), R = 4, x, y, k;
+  for (y = 0; y < WH; y++) for (x = 0; x < WW; x++) D[y * WW + x] = fanDetail(x, y) ? 1 : 0;
+  for (y = 0; y < WH; y++){ var run = 0; for (x = 0; x < WW; x++){ if (D[y * WW + x]) run = R + 1; else if (run) run--; if (run) E[y * WW + x] = 1; } for (x = WW - 1, run = 0; x >= 0; x--){ if (D[y * WW + x]) run = R + 1; else if (run) run--; if (run) E[y * WW + x] = 1; } }
+  var F2 = new Uint8Array(WW * WH);
+  for (x = 0; x < WW; x++){ var run2 = 0; for (y = 0; y < WH; y++){ if (E[y * WW + x]) run2 = R + 1; else if (run2) run2--; if (run2) F2[y * WW + x] = 1; } for (y = WH - 1, run2 = 0; y >= 0; y--){ if (E[y * WW + x]) run2 = R + 1; else if (run2) run2--; if (run2) F2[y * WW + x] = 1; } }
+  G.det = F2;
+}
+function fanDetail(gx, gy){
+  var P = G.fanPx; if (!P) return false;
+  var x0 = Math.floor(gx * FAN_S + FAN_OX), y0 = Math.floor(gy * FAN_S + FAN_OY), lo = [255, 255, 255], hi = [0, 0, 0];
+  for (var y = y0; y <= y0 + 2; y++) for (var x = x0; x <= x0 + 2; x++){ if (x < 0 || y < 0 || x >= G.fanW || y >= G.fanH) continue; var o = (y * G.fanW + x) * 4; for (var k = 0; k < 3; k++){ if (P[o + k] < lo[k]) lo[k] = P[o + k]; if (P[o + k] > hi[k]) hi[k] = P[o + k]; } }
+  return Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) > 60;
+}
 function loadFan(cb){
   if (G.fan !== undefined) return cb();
   var im = new Image(), done = false; function fin(ok){ if (done) return; done = true; G.fan = ok ? im : null; cb(); }
-  im.onload = function(){ fin(true); }; im.onerror = function(){ fin(false); }; im.src = 'map/hoenn.png';
+  im.onload = function(){ try{ var fc = document.createElement('canvas'); fc.width = im.width; fc.height = im.height; var fx = fc.getContext('2d'); fx.drawImage(im, 0, 0); G.fanPx = fx.getImageData(0, 0, im.width, im.height).data; G.fanW = im.width; G.fanH = im.height; }catch(e){ G.fanPx = null; } fin(true); }; im.onerror = function(){ fin(false); }; im.src = 'map/hoenn.png';
 }
 
 /* ---------- where the trainer is ---------- */
