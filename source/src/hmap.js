@@ -159,10 +159,21 @@ function build(done){
     for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(mapHeader(PLACE[k][0])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
   }catch(e){ G.err = 'This game file has different maps than the usual Emerald, so the map is not available.'; return done(); }
   G.cells = new Int32Array(WW * WH).fill(-1); G.atlas = new Uint8ClampedArray(1024 * 2048 * 4); G.n = 0; G.byId = {}; TS = {};
-  var i = 0, pass = 0;
+  var i = 0, pass = 0, F = null, fy = 0;
   (function step(){
     var t0 = Date.now();
-    while (pass < 2 && Date.now() - t0 < 12){
+    while (pass < 3 && Date.now() - t0 < 12){
+      if (pass === 2){   /* the gaps between places: continue the scenery of the nearest place (its border tiles) */
+        if (!F) F = PLACE.map(function(pl2){ var L3 = layoutOf(mapHeader(pl2[0])); return {x0: pl2[1] + MX, y0: pl2[2] + MY, x1: pl2[1] + MX + L3.w, y1: pl2[2] + MY + L3.h, t1: L3.t1, t2: L3.t2, bl: [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L3.border + 2 * q, true) & 0x3FF; })}; });
+        for (var gx = 0; gx < WW; gx++){
+          if (G.cells[fy * WW + gx] >= 0) continue;
+          var bi = -1, bd = 1e12;
+          for (var fi = 0; fi < F.length; fi++){ var f = F[fi], ddx = gx < f.x0 ? f.x0 - gx : (gx >= f.x1 ? gx - f.x1 + 1 : 0), ddy = fy < f.y0 ? f.y0 - fy : (fy >= f.y1 ? fy - f.y1 + 1 : 0), dd = ddx * ddx + ddy * ddy; if (dd < bd){ bd = dd; bi = fi; } }
+          var fb = F[bi]; G.cells[fy * WW + gx] = cellFor(fb.t1, fb.t2, fb.bl[((gx - fb.x0) & 1) + ((fy - fb.y0) & 1) * 2]);
+        }
+        if (++fy >= WH) pass++;
+        continue;
+      }
       if (i >= PLACE.length){ pass++; i = 0; continue; }
       var pl = PLACE[i++], L2 = layoutOf(mapHeader(pl[0])), ax = pl[1] + MX, ay = pl[2] + MY;
       if (pass === 0){
@@ -179,7 +190,7 @@ function build(done){
         }
       }
     }
-    if (pass < 2) return setTimeout(step, 0);
+    if (pass < 3) return setTimeout(step, 0);
     finish(); done();
   })();
 }
