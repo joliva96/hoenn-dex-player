@@ -162,10 +162,10 @@ function build(done){
     for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(mapHeader(PLACE[k][0])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
   }catch(e){ G.err = 'This game file has different maps than the usual Emerald, so the map is not available.'; return done(); }
   G.cells = new Int32Array(WW * WH).fill(-1); G.atlas = new Uint8ClampedArray(1024 * 2048 * 4); G.n = 0; G.byId = {}; TS = {};
-  var i = 0, pass = 0, F = null, fy = 0;
+  var i = 0, pass = G.fan ? 1 : 0, LASTP = G.fan ? 2 : 3, F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
   (function step(){
     var t0 = Date.now();
-    while (pass < 3 && Date.now() - t0 < 12){
+    while (pass < LASTP && Date.now() - t0 < 12){
       if (pass === 2){   /* the gaps between places: continue the scenery of the nearest place (its border tiles) */
         if (!F) F = PLACE.map(function(pl2){
           var L3 = layoutOf(mapHeader(pl2[0])), bl3 = [0, 1, 2, 3].map(function(q){ return G.dv.getUint16(L3.border + 2 * q, true) & 0x3FF; }), sr = 0, sg = 0, sb = 0;
@@ -198,7 +198,7 @@ function build(done){
         }
       }
     }
-    if (pass < 3) return setTimeout(step, 0);
+    if (pass < LASTP) return setTimeout(step, 0);
     finish(); done();
   })();
 }
@@ -214,7 +214,7 @@ function finish(){
   }
   var ow = WW * 4, oh = WH * 4, od = new Uint8ClampedArray(ow * oh * 4);
   for (var cy = 0; cy < WH; cy++) for (var cx = 0; cx < WW; cx++){
-    var c = G.cells[cy * WW + cx]; if (c < 0) { for (var yy = 0; yy < 4; yy++) for (var xx = 0; xx < 4; xx++) od[((cy * 4 + yy) * ow + cx * 4 + xx) * 4 + 3] = 255; continue; }
+    var c = G.cells[cy * WW + cx]; if (c < 0) { if (!G.fan) for (var yy = 0; yy < 4; yy++) for (var xx = 0; xx < 4; xx++) od[((cy * 4 + yy) * ow + cx * 4 + xx) * 4 + 3] = 255; continue; }
     for (var yy2 = 0; yy2 < 4; yy2++) for (var xx2 = 0; xx2 < 4; xx2++){ var s = (c * 16 + yy2 * 4 + xx2) * 4, d = ((cy * 4 + yy2) * ow + cx * 4 + xx2) * 4; od[d] = small[s]; od[d + 1] = small[s + 1]; od[d + 2] = small[s + 2]; od[d + 3] = 255; }
   }
   var oc = document.createElement('canvas'); oc.width = ow; oc.height = oh; oc.getContext('2d').putImageData(new ImageData(od, ow, oh), 0, 0); G.over = oc;
@@ -222,7 +222,14 @@ function finish(){
 }
 function ensure(cb){
   if (G.ready) return cb(); if (G.building) return; G.building = true; setMsg('Drawing the map from your game…');
-  build(function(){ G.building = false; G.fatal = !!G.err && G.err !== 'Load your game first.'; if (G.err) setMsg(G.err); else setMsg(''); cb(); });
+  loadFan(function(){ build(function(){ G.building = false; G.fatal = !!G.err && G.err !== 'Load your game first.'; if (G.err) setMsg(G.err); else setMsg(''); cb(); }); });
+}
+/* the fan-made reference map (map/hoenn.png) is the scenery behind and around the places drawn from the game; ~1.51 px per tile, found by matching it to the game's own layout */
+var FAN_S = 1.51, FAN_OX = 1.0, FAN_OY = 24.5;
+function loadFan(cb){
+  if (G.fan !== undefined) return cb();
+  var im = new Image(), done = false; function fin(ok){ if (done) return; done = true; G.fan = ok ? im : null; cb(); }
+  im.onload = function(){ fin(true); }; im.onerror = function(){ fin(false); }; im.src = 'map/hoenn.png';
 }
 
 /* ---------- where the trainer is ---------- */
@@ -291,7 +298,8 @@ function drawView(cv, cx, cy, s, tappable){
     if (G.flash && Date.now() - G.flash.t < 1500){ var fr = Math.max(10 * d0, Math.min(s * 0.9, 22 * d0)); c.lineWidth = 3 * d0; c.strokeStyle = '#ff2d95'; c.beginPath(); c.arc((G.flash.x - sx) * s, (G.flash.y - sy) * s, fr, 0, 6.2832); c.stroke(); }
     return;
   }
-  if (s < 5){ c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); }
+  if (G.fan){ c.imageSmoothingEnabled = s < FAN_S * 3; var k = s / FAN_S; c.drawImage(G.fan, 0, 0, G.fan.width, G.fan.height, (FAN_OX / FAN_S - sx) * s, (FAN_OY / FAN_S - sy) * s, G.fan.width * k, G.fan.height * k); }
+  if (s < 5){ if (!G.fan){ c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); } }
   else {
     c.imageSmoothingEnabled = false;
     var x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy)), x1 = Math.min(WW, Math.ceil(sx + w / s)), y1 = Math.min(WH, Math.ceil(sy + h / s));
