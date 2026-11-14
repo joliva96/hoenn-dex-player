@@ -174,3 +174,6 @@ html.emu-on,html.emu-on body{overflow:hidden;height:100%;overscroll-behavior:non
 /* no double-tap zoom, no text magnifier or selection on buttons and the map (iPhone) */
 button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.emu-card *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .map-view canvas{touch-action:none}
+/* the engine's own (unstyled) controls and pop-ups must never show; its sound-resume prompt is replaced by our Play button */
+#ejs-host,.ejs_parent,.ejs_menu_bar,.ejs_context_menu,.ejs_virtualGamepad_parent{visibility:hidden!important;pointer-events:none!important}
+.ejs_popup_container{display:none!important}
