@@ -245,6 +245,15 @@ function fanClassAt(gx, gy){   /* sea / land / mountain of the reference picture
       var m = [0, 0, 0]; for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++){ var X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < WW && Y < WH) m[c[Y * WW + X]]++; }
       d[y * WW + x] = m[c[y * WW + x]] >= 4 ? c[y * WW + x] : (m[0] >= m[1] && m[0] >= m[2] ? 0 : (m[2] > m[1] ? 2 : 1));
     }
+    /* rock shapes that touch no land are the picture author's stand-ins for things the game does not have: open sea instead */
+    var seen = new Uint8Array(WW * WH), st = [];
+    for (var i0 = 0; i0 < WW * WH; i0++){
+      if (d[i0] !== 2 || seen[i0]) continue;
+      var comp = [], touch = false; st.push(i0); seen[i0] = 1;
+      while (st.length){ var q = st.pop(); comp.push(q); var qx = q % WW, qy = (q / WW) | 0;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1) touch = true; else if (d[k] === 2 && !seen[k]){ seen[k] = 1; st.push(k); } }); }
+      if (!touch) comp.forEach(function(k){ d[k] = 0; });
+    }
     G.fcls = d;
   }
   return G.fcls[gy * WW + gx];
@@ -335,8 +344,7 @@ function drawView(cv, cx, cy, s, tappable){
     if (G.flash && Date.now() - G.flash.t < 1500){ var fr = Math.max(10 * d0, Math.min(s * 0.9, 22 * d0)); c.lineWidth = 3 * d0; c.strokeStyle = '#ff2d95'; c.beginPath(); c.arc((G.flash.x - sx) * s, (G.flash.y - sy) * s, fr, 0, 6.2832); c.stroke(); }
     return;
   }
-  if (G.fan){ c.imageSmoothingEnabled = s < FAN_S * 3; var k = s / FAN_S; c.drawImage(G.fan, 0, 0, G.fan.width, G.fan.height, (-FAN_OX / FAN_S - sx) * s, (-FAN_OY / FAN_S - sy) * s, G.fan.width * k, G.fan.height * k); }
-  if (s < 5){ if (!G.fan){ c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); } }
+  if (s < 5){ { c.imageSmoothingEnabled = true; blit(c, G.over, sx * 4, sy * 4, w / s * 4, h / s * 4, w, h); } }
   else {
     c.imageSmoothingEnabled = false;
     var x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy)), x1 = Math.min(WW, Math.ceil(sx + w / s)), y1 = Math.min(WH, Math.ceil(sy + h / s));
