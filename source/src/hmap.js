@@ -249,12 +249,20 @@ function fanClassAt(gx, gy){   /* sea / land / mountain of the reference picture
       d[y * WW + x] = m[c[y * WW + x]] >= 4 ? c[y * WW + x] : (m[0] >= m[1] && m[0] >= m[2] ? 0 : (m[2] > m[1] ? 2 : 1));
     }
     /* rock shapes that touch no land are the picture author's stand-ins for things the game does not have: open sea instead */
+    var lsz = new Int32Array(WW * WH), lseen = new Uint8Array(WW * WH), lst = [];   /* size of the land patch each land cell belongs to: tiny patches do not count as mainland */
+    for (var l0 = 0; l0 < WW * WH; l0++){
+      if (d[l0] !== 1 || lseen[l0]) continue;
+      var lc = []; lst.push(l0); lseen[l0] = 1;
+      while (lst.length){ var lq = lst.pop(); lc.push(lq); var lx = lq % WW, ly = (lq / WW) | 0;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = lx + v[0], Y = ly + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1 && !lseen[k]){ lseen[k] = 1; lst.push(k); } }); }
+      lc.forEach(function(k){ lsz[k] = lc.length; });
+    }
     var seen = new Uint8Array(WW * WH), st = [];
     for (var i0 = 0; i0 < WW * WH; i0++){
       if (d[i0] !== 2 || seen[i0]) continue;
       var comp = [], touch = false; st.push(i0); seen[i0] = 1;
       while (st.length){ var q = st.pop(); comp.push(q); var qx = q % WW, qy = (q / WW) | 0;
-        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1) touch = true; else if (d[k] === 2 && !seen[k]){ seen[k] = 1; st.push(k); } }); }
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1 && lsz[k] > 700) touch = true; else if (d[k] === 2 && !seen[k]){ seen[k] = 1; st.push(k); } }); }
       if (!touch) comp.forEach(function(k){ d[k] = 0; });
     }
     G.fcls = d;

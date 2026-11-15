@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 45)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 46)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -532,7 +532,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 45</h2>
+    <h2>Menu · build 46</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -2983,12 +2983,20 @@ function fanClassAt(gx, gy){   /* sea / land / mountain of the reference picture
       d[y * WW + x] = m[c[y * WW + x]] >= 4 ? c[y * WW + x] : (m[0] >= m[1] && m[0] >= m[2] ? 0 : (m[2] > m[1] ? 2 : 1));
     }
     /* rock shapes that touch no land are the picture author's stand-ins for things the game does not have: open sea instead */
+    var lsz = new Int32Array(WW * WH), lseen = new Uint8Array(WW * WH), lst = [];   /* size of the land patch each land cell belongs to: tiny patches do not count as mainland */
+    for (var l0 = 0; l0 < WW * WH; l0++){
+      if (d[l0] !== 1 || lseen[l0]) continue;
+      var lc = []; lst.push(l0); lseen[l0] = 1;
+      while (lst.length){ var lq = lst.pop(); lc.push(lq); var lx = lq % WW, ly = (lq / WW) | 0;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = lx + v[0], Y = ly + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1 && !lseen[k]){ lseen[k] = 1; lst.push(k); } }); }
+      lc.forEach(function(k){ lsz[k] = lc.length; });
+    }
     var seen = new Uint8Array(WW * WH), st = [];
     for (var i0 = 0; i0 < WW * WH; i0++){
       if (d[i0] !== 2 || seen[i0]) continue;
       var comp = [], touch = false; st.push(i0); seen[i0] = 1;
       while (st.length){ var q = st.pop(); comp.push(q); var qx = q % WW, qy = (q / WW) | 0;
-        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1) touch = true; else if (d[k] === 2 && !seen[k]){ seen[k] = 1; st.push(k); } }); }
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var k = Y * WW + X; if (d[k] === 1 && lsz[k] > 700) touch = true; else if (d[k] === 2 && !seen[k]){ seen[k] = 1; st.push(k); } }); }
       if (!touch) comp.forEach(function(k){ d[k] = 0; });
     }
     G.fcls = d;
