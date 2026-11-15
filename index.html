@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><script>window.__EJS=true</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hoenn Dex Player (build 47)</title><meta name="theme-color" content="#06281c">
+<title>Hoenn Dex Player (build 48)</title><meta name="theme-color" content="#06281c">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dex Player"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
@@ -532,7 +532,7 @@ button,[role=button],.map-view,.map-view *,.emu-sheet,.emu-sheet *,.emu-card,.em
 
   <div class="emu-scrim" id="emu-scrim" hidden></div>
   <div class="emu-sheet" id="emu-sheet" role="dialog" aria-label="Menu" hidden>
-    <h2>Menu · build 47</h2>
+    <h2>Menu · build 48</h2>
     <p class="stat" id="mn-stat"></p>
     <div id="mn-ask" hidden></div>
     <div id="mn-list" style="display:grid;gap:8px">
@@ -2894,7 +2894,7 @@ function build(done){
     for (var k = 0; k < PLACE.length; k++){ var L = layoutOf(plHdr(PLACE[k])); if (L.w !== PLACE[k][3] || L.h !== PLACE[k][4]) throw new Error('layout'); }
   }catch(e){ G.err = 'This game file has different maps than the usual Emerald, so the map is not available.'; return done(); }
   G.cells = new Int32Array(WW * WH).fill(-1); G.atlas = new Uint8ClampedArray(1024 * 2048 * 4); G.n = 0; G.byId = {}; TS = {};
-  var i = 0, pass = 0, LASTP = 3, F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
+  var i = 0, pass = 1, LASTP = 3,   /* pass 0 (game margins) is no longer used */  F = null, fy = 0;   /* with the reference picture loaded there is no margin or gap fill: the picture shows through */
   (function step(){
     var t0 = Date.now();
     while (pass < LASTP && Date.now() - t0 < 12){
@@ -2906,15 +2906,16 @@ function build(done){
           var cl = (sb > sr + 40 * 1024 && sb > sg + 40 * 1024) ? 0 : (sr > sg - 5 * 1024 ? 2 : 1);   /* what the border looks like: sea, land or mountain */
           return {pl5: pl2[5], x0: pl2[1] + MX, y0: pl2[2] + MY, x1: pl2[1] + MX + L3.w, y1: pl2[2] + MY + L3.h, t1: L3.t1, t2: L3.t2, bl: bl3, cl: cl};
         });
+        if (!G.K) buildK(F);
         for (var gx = 0; gx < WW; gx++){
           if (G.cells[fy * WW + gx] >= 0) continue;
-          var want = fanClassAt(gx, fy), bi = -1, bd = 1e12, bi2 = -1, bd2 = 1e12;
+          var want = G.K[fy * WW + gx], bi = -1, bd = 1e12, bi2 = -1, bd2 = 1e12;
           for (var fi = 0; fi < F.length; fi++){ var f = F[fi], ddx = gx < f.x0 ? f.x0 - gx : (gx >= f.x1 ? gx - f.x1 + 1 : 0), ddy = fy < f.y0 ? f.y0 - fy : (fy >= f.y1 ? fy - f.y1 + 1 : 0), dd = ddx * ddx + ddy * ddy; if (dd < bd2){ bd2 = dd; bi2 = fi; } if (f.cl === want && dd < bd){ bd = dd; bi = fi; } }
           var fb = F[bi >= 0 ? bi : bi2], pick = cellFor(fb.t1, fb.t2, fb.bl[((gx - fb.x0) & 1) + ((fy - fb.y0) & 1) * 2]);
           if (want === 2){ var rk = rockBits(), hh = ((gx * 73856093) ^ (fy * 19349663)) >>> 0; if (rk.length && hh % 100 < 14) pick = rk[(hh >>> 8) % rk.length]; }   /* a scattering of real rock/cliff tiles so mountains are not one flat colour */
           if (!G.edge) G.edge = learnEdges(F);
-          var eb = (fanClassAt(gx, fy - 1) !== want ? 1 : 0) | (fanClassAt(gx + 1, fy) !== want ? 2 : 0) | (fanClassAt(gx, fy + 1) !== want ? 4 : 0) | (fanClassAt(gx - 1, fy) !== want ? 8 : 0);
-          if (eb){ var el = G.edge[want * 16 + eb]; if (el){ var h2 = ((gx * 2654435761) ^ (fy * 40503)) >>> 0; pick = el[h2 % el.length]; } }   /* shorelines and cliff edges use the real edge tiles */
+          var eb = (kAt(gx, fy - 1) === 0 ? 1 : 0) | (kAt(gx + 1, fy) === 0 ? 2 : 0) | (kAt(gx, fy + 1) === 0 ? 4 : 0) | (kAt(gx - 1, fy) === 0 ? 8 : 0);
+          if (eb && want > 0){ var el = G.edge[want * 16 + eb]; if (el){ var h2 = ((gx * 2654435761) ^ (fy * 40503)) >>> 0; pick = el[h2 % el.length]; } }   /* shorelines and cliff edges use the real edge tiles */
           G.cells[fy * WW + gx] = pick;
         }
         if (++fy >= WH) pass++;
@@ -2982,6 +2983,35 @@ function rockBits(){   /* rock-looking tiles used by the real map around Route 1
   }
   return (G.rk = out);
 }
+function kAt(x, y){ if (x < 0 || y < 0 || x >= WW || y >= WH) return 0; return G.K[y * WW + x]; }
+/* which kind of scenery each empty tile gets: near a real map it continues what that map has at its edge; farther away it follows the shape file; and land that is not joined to any real map becomes sea */
+function buildK(F){
+  var N = WW * WH, K = new Uint8Array(N), dist = new Int16Array(N).fill(-1), cls = new Int8Array(N), q = new Int32Array(N), qh = 0, qt = 0, i, x, y;
+  F.forEach(function(f){ for (y = f.y0; y < f.y1; y++) for (x = f.x0; x < f.x1; x++){ i = y * WW + x; var c = tileCls(G.cells[i]); dist[i] = 0; cls[i] = c < 0 ? 1 : c; q[qt++] = i; } });
+  while (qh < qt){ i = q[qh++]; x = i % WW; y = (i / WW) | 0; var d1 = dist[i] + 1;
+    if (d1 > 40) continue;
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = x + v[0], Y = y + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var j = Y * WW + X; if (dist[j] >= 0) return; dist[j] = d1; cls[j] = cls[i]; q[qt++] = j; }); }
+  for (i = 0; i < N; i++) K[i] = (dist[i] >= 0 && dist[i] <= 2) ? cls[i] : fanClassAt(i % WW, (i / WW) | 0);
+  var seen = new Uint8Array(N), st = [];
+  for (var s0 = 0; s0 < N; s0++){
+    if (K[s0] === 0 || seen[s0] || dist[s0] === 0) continue;
+    var comp = [], near = false; st.push(s0); seen[s0] = 1;
+    while (st.length){ var p = st.pop(); comp.push(p); if (dist[p] >= 0 && dist[p] <= 10) near = true; var px = p % WW, py = (p / WW) | 0;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = px + v[0], Y = py + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var j = Y * WW + X; if (K[j] !== 0 && !seen[j] && dist[j] !== 0){ seen[j] = 1; st.push(j); } }); }
+    if (!near) comp.forEach(function(k){ K[k] = 0; });
+  }
+  /* mountain shapes that touch no real land (only sea and sea-rocks) are the picture's stand-ins: sea */
+  var seen2 = new Uint8Array(N);
+  for (var r0 = 0; r0 < N; r0++){
+    if (K[r0] !== 2 || seen2[r0] || dist[r0] === 0) continue;
+    var comp2 = [], land = false; st.push(r0); seen2[r0] = 1;
+    while (st.length){ var p2 = st.pop(); comp2.push(p2); var qx = p2 % WW, qy = (p2 / WW) | 0;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function(v){ var X = qx + v[0], Y = qy + v[1]; if (X < 0 || Y < 0 || X >= WW || Y >= WH) return; var j = Y * WW + X;
+        if (dist[j] === 0){ if (tileCls(G.cells[j]) === 1) land = true; } else if (K[j] === 1) land = true; else if (K[j] === 2 && !seen2[j]){ seen2[j] = 1; st.push(j); } }); }
+    if (!land) comp2.forEach(function(k){ K[k] = 0; });
+  }
+  G.K = K;
+}
 function tileCls(c){   /* what a tile looks like on average: 0 sea, 1 land, 2 mountain, -1 other (sand, paths, buildings) */
   if (!G.tcl) G.tcl = {};
   if (G.tcl[c] !== undefined) return G.tcl[c];
@@ -2998,12 +3028,12 @@ function learnEdges(F){
   for (y = 1; y < WH - 1; y++) for (x = 1; x < WW - 1; x++){
     var i = y * WW + x; if (!pm[i]) continue; var c = tileCls(G.cells[i]); if (c < 0) continue;
     var bits = 0, ok = true;
-    for (var k = 0; k < 4; k++){ var j = (y + dy[k]) * WW + x + dx[k]; if (!pm[j]){ ok = false; break; } var nc = tileCls(G.cells[j]); if (nc < 0){ ok = false; break; } if (nc !== c) bits |= 1 << k; }
+    for (var k = 0; k < 4; k++){ var j = (y + dy[k]) * WW + x + dx[k]; if (!pm[j]){ ok = false; break; } var nc = tileCls(G.cells[j]); if (nc < 0){ ok = false; break; } if (nc !== c){ if (nc !== 0 || c === 0){ ok = false; break; } bits |= 1 << k; } }
     if (!ok || !bits) continue;
     var key = c * 16 + bits; (T[key] || (T[key] = {}))[G.cells[i]] = (T[key][G.cells[i]] || 0) + 1;
   }
   var out = {};
-  Object.keys(T).forEach(function(key){ var ids = Object.keys(T[key]), tot = 0, list = []; ids.forEach(function(id){ tot += T[key][id]; }); if (tot < 3) return; ids.forEach(function(id){ var n = T[key][id]; if (n * 25 >= tot) for (var q = 0; q < n; q++) list.push(+id); }); if (list.length) out[key] = list; });
+  Object.keys(T).forEach(function(key){ var ids = Object.keys(T[key]), tot = 0, list = []; ids.forEach(function(id){ tot += T[key][id]; }); if (tot < 12) return; ids.forEach(function(id){ var n = T[key][id]; if (n * 12 >= tot) for (var q = 0; q < n; q++) list.push(+id); }); if (list.length) out[key] = list; });
   return out;
 }
 
